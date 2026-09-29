@@ -1,0 +1,5 @@
+node_modules/
+*.fit
+*.FIT
+export.xml
+Export.zip
