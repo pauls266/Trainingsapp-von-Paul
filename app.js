@@ -127,8 +127,8 @@ function viewHeute(){
     <div><div class="v">${num(c.atl)}</div><div class="l">Ermüdung</div></div>
     <div><div class="v">${c.tsb > 0 ? '+' : ''}${num(c.tsb)}</div><div class="l">Form</div></div></div>
     <div class="panel" style="margin-top:10px"><span class="state">${fs.label}</span><p class="small muted" style="margin:8px 0 10px">${fs.text}</p>
-    <div class="legend"><span><b style="background:var(--accent)"></b>Fitness</span><span><b style="background:var(--hr)"></b>Ermüdung</span></div>
-    ${lineSVG([{v:last.map(x=>x.ctl), c:'var(--accent)', w:2.4},{v:last.map(x=>x.atl), c:'var(--hr)', w:1.6}], {h:90, min:0, label:'Fitness und Ermüdung der letzten 6 Wochen'})}
+    <div class="legend"><span><b style="background:var(--data)"></b>Fitness</span><span><b style="background:var(--hr)"></b>Ermüdung</span></div>
+    ${lineSVG([{v:last.map(x=>x.ctl), c:'var(--data)', w:2.4},{v:last.map(x=>x.atl), c:'var(--hr)', w:1.6}], {h:90, min:0, label:'Fitness und Ermüdung der letzten 6 Wochen'})}
     <div class="axis"><span>vor 6 Wochen</span><span>heute</span></div></div>`;
 
   if (vd){
@@ -242,7 +242,7 @@ function viewLaeufe(){
 
 function viewPlan(){
   const p = state.plan;
-  const TC = {Q:'var(--z4)', L:'var(--accent)', E:'var(--z2)', R:'var(--line)', W:'var(--z5)'};
+  const TC = {Q:'var(--z4)', L:'var(--ink)', E:'var(--z2)', R:'var(--line)', W:'var(--z5)'};
   const total = p.sessions.reduce((s,x) => s + x.km, 0);
   let h = `<h2 style="margin-top:8px">Diese Woche: ${esc(p.phase)}${p.recovery ? ' (Entlastung)' : ''}</h2>
     <p class="muted small">${p.wtr !== null ? (p.wtr === 0 ? 'Wettkampfwoche. ' : `Noch ${p.wtr} Woche${p.wtr===1?'':'n'} bis zum ${p.goal==='m'?'Marathon':'Halbmarathon'}. `) : 'Kein Wettkampfdatum eingetragen – der Plan baut Grundlage auf. '}Rund ${num(total)} km geplant, Schnitt der letzten 4 Wochen ${num(p.vol4)} km.</p>
@@ -292,13 +292,13 @@ function viewTrends(){
   const {acts, der, series} = state;
   const wk = weeklyKm(acts, 12);
   let h = `<h2 style="margin-top:8px">Wochenumfang</h2><div class="panel">
-    ${lineSVG([{v:wk.map(w=>w.km), c:'var(--accent)', bars:true, op:.85}], {h:110, min:0, label:'Laufkilometer pro Woche'})}
+    ${lineSVG([{v:wk.map(w=>w.km), c:'var(--data)', bars:true, op:.85}], {h:110, min:0, label:'Laufkilometer pro Woche'})}
     <div class="axis"><span>vor 12 Wochen</span><span>max. ${num(Math.max(...wk.map(w=>w.km)))} km</span><span>diese Woche ${num(wk[wk.length-1].km)} km</span></div></div>`;
 
   const s90 = series.slice(-90);
   h += `<h2>Fitness, Ermüdung, Form</h2><div class="panel">
-    <div class="legend"><span><b style="background:var(--accent)"></b>Fitness (42 Tage)</span><span><b style="background:var(--hr)"></b>Ermüdung (7 Tage)</span><span><b style="background:var(--z3)"></b>Form</span></div>
-    ${lineSVG([{v:s90.map(x=>x.tsb), c:'var(--z3)', bars:true, op:.45},{v:s90.map(x=>x.ctl), c:'var(--accent)', w:2.4},{v:s90.map(x=>x.atl), c:'var(--hr)', w:1.5}], {h:150, zero:true, label:'Belastungsverlauf 90 Tage'})}
+    <div class="legend"><span><b style="background:var(--data)"></b>Fitness (42 Tage)</span><span><b style="background:var(--hr)"></b>Ermüdung (7 Tage)</span><span><b style="background:var(--z3)"></b>Form</span></div>
+    ${lineSVG([{v:s90.map(x=>x.tsb), c:'var(--z3)', bars:true, op:.45},{v:s90.map(x=>x.ctl), c:'var(--data)', w:2.4},{v:s90.map(x=>x.atl), c:'var(--hr)', w:1.5}], {h:150, zero:true, label:'Belastungsverlauf 90 Tage'})}
     <div class="axis"><span>vor 90 Tagen</span><span>heute</span></div>
     <p class="small muted" style="margin:8px 0 0">Basis ist der Banister-TRIMP aus deiner Herzfrequenz – also deine innere Belastung, nicht nur Kilometer.</p></div>`;
 
@@ -310,7 +310,7 @@ function viewTrends(){
     const mx = xs.reduce((a,c)=>a+c,0)/n, my = ys.reduce((a,c)=>a+c,0)/n;
     const sl = xs.reduce((a,x,i)=>a+(x-mx)*(ys[i]-my),0) / (xs.reduce((a,x)=>a+(x-mx)**2,0) || 1);
     const fit = xs.map(x => my + sl*(x-mx)), chg = (fit[n-1]-fit[0])/fit[0]*100;
-    h += lineSVG([{v:ys, c:'var(--accent)', dots:true},{v:fit, c:'var(--ink)', w:1.4, dash:true}], {h:110, label:'Effizienzfaktor'}) +
+    h += lineSVG([{v:ys, c:'var(--data)', dots:true},{v:fit, c:'var(--ink)', w:1.4, dash:true}], {h:110, label:'Effizienzfaktor'}) +
       `<div class="axis"><span>${fmtDate(efp[0].start)}</span><span>${fmtDate(efp[n-1].start)}</span></div>
       <p class="small" style="margin:8px 0 0">Meter pro Minute je Herzschlag. Trend: <b>${chg >= 0 ? '+' : ''}${num(chg,1)} %</b> – ${chg > 1 ? 'du läufst bei gleichem Puls schneller, die aerobe Basis wächst.' : chg < -1 ? 'leicht rückläufig. Ermüdung, Hitze oder Krankheit können das erklären.' : 'stabil.'}</p>`;
   } else h += `<p class="small muted" style="margin:0">Braucht mindestens drei lockere Läufe ab 20 Minuten mit Herzfrequenz.</p>`;
@@ -344,8 +344,8 @@ function viewTrends(){
     if (valid.length >= 3){
       const avg = arr => arr.reduce((a,c)=>a+c,0)/arr.length;
       const l7 = sls.slice(-7).filter(Boolean), st = valid.filter(x => x.stages);
-      h += `<h2>Schlaf (30 Nächte)</h2><div class="panel"><div class="legend"><span><b style="background:var(--accent)"></b>Schlafdauer</span><span><b style="background:var(--z3)"></b>Ziel ${num(tgt,1)} h</span></div>
-        ${lineSVG([{v:sls.map(x => x ? x.tot/60 : null), c:'var(--accent)', bars:true, op:.75},{v:sd.map(()=>tgt), c:'var(--z3)', w:1.4, dash:true}], {h:110, min:0, max:Math.max(tgt+1, ...valid.map(x=>x.tot/60)), label:'Schlafdauer'})}
+      h += `<h2>Schlaf (30 Nächte)</h2><div class="panel"><div class="legend"><span><b style="background:var(--data)"></b>Schlafdauer</span><span><b style="background:var(--z3)"></b>Ziel ${num(tgt,1)} h</span></div>
+        ${lineSVG([{v:sls.map(x => x ? x.tot/60 : null), c:'var(--data)', bars:true, op:.75},{v:sd.map(()=>tgt), c:'var(--z3)', w:1.4, dash:true}], {h:110, min:0, max:Math.max(tgt+1, ...valid.map(x=>x.tot/60)), label:'Schlafdauer'})}
         <div class="axis"><span>vor 30 Tagen</span><span>letzte Nacht</span></div>
         <p class="small" style="margin:8px 0 0">Ø letzte 7 Nächte <b>${l7.length ? fmtHM(avg(l7.map(x=>x.tot))) : '–'}</b>, Ø 30 Nächte ${fmtHM(avg(valid.map(x=>x.tot)))}.${st.length ? ` Tiefschlaf im Schnitt ${num(avg(st.map(x=>x.deep/x.tot*100)))} %, REM ${num(avg(st.map(x=>x.rem/x.tot*100)))} %.` : ''}</p></div>`;
     }
@@ -448,7 +448,7 @@ function openSettings(){
     <p class="small">Tageswerte: ${Object.keys(state.W.rhr).length} Tage Ruhepuls, ${Object.keys(state.W.sleep).length} Nächte Schlaf.</p>
     <p style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn danger" data-action="clearall">Alle Aktivitäten löschen</button><button class="btn danger" data-action="clearwell">Tageswerte löschen</button></p>
     ${privacyNote()}
-    <p class="small" style="margin-top:16px;text-align:center">Laufbuch · Version ${esc(APP_VERSION)}</p>
+    <p class="version">Laufbuch · Version ${esc(APP_VERSION)}</p>
   </div>`;
   openSheet(h);
 }
@@ -564,5 +564,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
   const w = await DB.getMeta('wellness'); if (w && w.rhr && w.sleep) state.W = w;
   state.acts = (await DB.all()) || [];
   recompute(); render();
+  // Offline-Start: Hintergrundhelfer anmelden (nur über http/https, nicht beim Öffnen als lokale Datei)
+  try { if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch(e){}
 })();
 })();

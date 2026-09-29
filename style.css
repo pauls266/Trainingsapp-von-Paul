@@ -1,23 +1,26 @@
+/* Laufbuch 2.1 – kantiges, ruhiges Design: Blau-Schwarz, gebrochenes Weiß, ein roter Akzent.
+   Abgeschrägte Ecken statt Rundungen, schmale Großbuchstaben für Beschriftungen. */
 :root{
-  --bg:#EDF0F3; --surface:#FFFFFF; --ink:#16222E; --muted:#5E6A77; --line:#D5DBE2;
-  --accent:#2346D6; --accent-ink:#FFFFFF; --bib:#F5C518; --bib-ink:#1B1A12; --warn:#B4531B;
-  --z1:#98A6B5; --z2:#3A8BD6; --z3:#23A273; --z4:#EE9A1F; --z5:#DE4637;
-  --hr:#DE4637; --pace:#2346D6;
+  --bg:#EDEAE4; --surface:#F8F6F2; --ink:#141D26; --muted:#5A636E; --line:#D3CEC5;
+  --accent:#E63946; --accent-ink:#FFFFFF; --warn:#B4531B;
+  --data:#1F5F99; --hr:#D2303D; --pace:#1F5F99;
+  --z1:#8C96A0; --z2:#3E8FC9; --z3:#2E9E6E; --z4:#E3A33B; --z5:#E63946;
   --body:"Barlow", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --cond:"Barlow Condensed", "Arial Narrow", "Roboto Condensed", -apple-system, sans-serif;
+  --cut:12px;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#121A24; --surface:#1A2431; --ink:#E7ECF1; --muted:#9AA7B4; --line:#2B3847;
-    --accent:#7A95FF; --accent-ink:#0E1522; --warn:#F0955A; --pace:#7A95FF; color-scheme:dark;
+    --bg:#0F1923; --surface:#16222E; --ink:#ECE8E1; --muted:#8D98A4; --line:#2A3846;
+    --accent:#FF4655; --accent-ink:#0F1923; --warn:#F0955A; --data:#7FB2E0; --hr:#FF5A67; --pace:#7FB2E0; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#121A24; --surface:#1A2431; --ink:#E7ECF1; --muted:#9AA7B4; --line:#2B3847;
-  --accent:#7A95FF; --accent-ink:#0E1522; --warn:#F0955A; --pace:#7A95FF; color-scheme:dark;
+  --bg:#0F1923; --surface:#16222E; --ink:#ECE8E1; --muted:#8D98A4; --line:#2A3846;
+  --accent:#FF4655; --accent-ink:#0F1923; --warn:#F0955A; --data:#7FB2E0; --hr:#FF5A67; --pace:#7FB2E0; color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:inherit}
 html{scroll-padding-top:env(safe-area-inset-top,0px); -webkit-text-size-adjust:100%}
@@ -27,107 +30,121 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .wrap{max-width:560px; margin:0 auto; padding:0 16px 110px}
 
+/* Beschriftungen: schmale Großbuchstaben */
+.lbl,.stats .l,.month,.legend,.axis,.form label,nav.tabs button,.state{font-family:var(--cond); text-transform:uppercase; letter-spacing:.12em}
+
 header.top{position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); display:flex; align-items:center; gap:8px; padding:12px 16px 10px; max-width:560px; margin:0 auto}
-header.top h1{font-family:var(--cond); font-weight:700; font-size:26px; letter-spacing:.2px; margin:0; flex:1}
-.btn{border:0; border-radius:10px; padding:9px 14px; background:var(--accent); color:var(--accent-ink); font-weight:600; font-size:15px}
-.btn.ghost{background:transparent; color:var(--ink); border:1px solid var(--line)}
-.btn.danger{background:transparent; color:var(--hr); border:1px solid var(--line)}
-.icon-btn{width:40px; height:40px; border-radius:10px; border:1px solid var(--line); background:transparent; display:grid; place-items:center}
+header.top h1{font-family:var(--cond); font-weight:700; font-size:24px; letter-spacing:.12em; text-transform:uppercase; margin:0; flex:1; display:flex; align-items:center; gap:9px}
+header.top h1::before{content:""; width:8px; height:19px; background:var(--accent); transform:skewX(-12deg)}
+.btn{border:0; border-radius:0; padding:10px 15px; background:var(--accent); color:var(--accent-ink); font-family:var(--cond); font-weight:600; font-size:15px; letter-spacing:.1em; text-transform:uppercase;
+  clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px))}
+.btn.ghost{background:transparent; color:var(--ink); box-shadow:inset 0 0 0 1px var(--line); clip-path:none}
+.btn.danger{background:transparent; color:var(--hr); box-shadow:inset 0 0 0 1px var(--line); clip-path:none}
+.icon-btn{width:40px; height:40px; border-radius:0; border:1px solid var(--line); background:transparent; display:grid; place-items:center}
 .icon-btn svg{width:20px; height:20px}
 
-nav.tabs{position:fixed; left:0; right:0; bottom:0; z-index:6; background:var(--surface); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs{position:fixed; left:0; right:0; bottom:0; z-index:6; background:var(--bg); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom,0px)}
 nav.tabs .in{max-width:560px; margin:0 auto; display:grid; grid-template-columns:repeat(5,1fr)}
-nav.tabs button{background:none; border:0; padding:8px 0 9px; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:12px; font-weight:500; color:var(--muted)}
-nav.tabs button svg{width:22px; height:22px}
-nav.tabs button[aria-current="page"]{color:var(--accent)}
+nav.tabs button{position:relative; background:none; border:0; padding:9px 0 10px; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11.5px; font-weight:600; color:var(--muted)}
+nav.tabs button svg{width:21px; height:21px}
+nav.tabs button[aria-current="page"]{color:var(--ink)}
+nav.tabs button[aria-current="page"]::before{content:""; position:absolute; top:-1px; left:24%; right:24%; height:3px; background:var(--accent)}
 
-h2{font-family:var(--cond); font-weight:600; font-size:22px; margin:26px 0 8px; letter-spacing:.2px}
-h3{font-size:15px; font-weight:600; margin:16px 0 6px}
+h2{font-family:var(--cond); font-weight:700; font-size:21px; margin:28px 0 10px; letter-spacing:.08em; text-transform:uppercase}
+h3{font-family:var(--cond); font-size:16px; font-weight:600; margin:18px 0 6px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
 p{margin:0 0 10px}
 .muted{color:var(--muted)}
 .small{font-size:13.5px}
-.panel{background:var(--surface); border-radius:14px; padding:14px 16px}
+/* Karten mit abgeschrägter Ecke oben rechts */
+.panel,.list,.guide{position:relative; background:var(--surface); border-radius:0;
+  clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,0 100%)}
+.panel::after,.list::after,.guide::after{content:""; position:absolute; top:0; right:0; width:var(--cut); height:var(--cut); pointer-events:none;
+  background:linear-gradient(225deg,transparent 50%,var(--line) 50%,var(--line) calc(50% + 1px),transparent calc(50% + 1px))}
+.panel{padding:14px 16px}
 .panel + .panel{margin-top:10px}
 
-/* Startnummer – das Herzstück */
-.bib{position:relative; background:var(--bib); color:var(--bib-ink); border-radius:12px; padding:22px 24px 20px; margin-top:6px; overflow:hidden}
-.bib .pin{position:absolute; width:9px; height:9px; border-radius:50%; background:var(--bg); box-shadow:inset 0 1px 1px rgba(0,0,0,.25)}
-.bib .pin:nth-child(1){top:10px; left:10px}.bib .pin:nth-child(2){top:10px; right:10px}.bib .pin:nth-child(3){bottom:10px; left:10px}.bib .pin:nth-child(4){bottom:10px; right:10px}
-.bib .date{font-size:14px; font-weight:500; opacity:.78}
-.bib .row{display:flex; align-items:flex-end; gap:14px; margin:4px 0 6px}
-.bib .kmnum{font-family:var(--cond); font-weight:700; font-size:88px; line-height:.86; letter-spacing:-1px}
-.bib .kmnum small{font-size:24px; font-weight:600; letter-spacing:0; margin-left:3px}
-.bib .title{font-family:var(--cond); font-weight:600; font-size:26px; line-height:1.05; padding-bottom:6px}
-.bib .tempo{font-weight:600; font-size:15px; border-top:2px solid var(--bib-ink); padding-top:8px; margin-top:8px}
-.bib .detail{font-size:15px; margin-top:4px}
+/* Tagesempfehlung (früher „Startnummer“) */
+.bib{position:relative; background:var(--surface); color:var(--ink); border-left:3px solid var(--accent); padding:18px 18px 18px 17px; margin-top:6px;
+  clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,0 100%)}
+.bib .pin{display:none}
+.bib .date{font-family:var(--cond); font-weight:600; font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+.bib .row{display:flex; align-items:flex-end; gap:14px; margin:8px 0 6px}
+.bib .kmnum{font-family:var(--cond); font-weight:700; font-size:84px; line-height:.84; letter-spacing:-1px; font-variant-numeric:tabular-nums}
+.bib .kmnum small{font-size:22px; font-weight:600; letter-spacing:0; margin-left:4px; color:var(--muted)}
+.bib .title{font-family:var(--cond); font-weight:700; font-size:26px; line-height:1.02; padding-bottom:4px; text-transform:uppercase; letter-spacing:.02em}
+.bib .tempo{font-family:var(--cond); font-weight:600; font-size:17px; letter-spacing:.04em; border-top:1px solid var(--line); padding-top:10px; margin-top:10px}
+.bib .detail{font-size:15px; margin-top:4px; color:var(--muted)}
 
-.stats{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border-radius:14px; overflow:hidden}
+.stats{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border-radius:0}
 .stats > div{background:var(--surface); padding:12px 12px 11px}
-.stats .v{font-family:var(--cond); font-weight:600; font-size:28px; line-height:1.05}
-.stats .l{font-size:13px; color:var(--muted)}
-.state{display:inline-block; font-weight:600; font-size:14px; padding:3px 9px; border-radius:6px; background:var(--bg)}
+.stats .v{font-family:var(--cond); font-weight:700; font-size:28px; line-height:1.05; font-variant-numeric:tabular-nums}
+.stats .l{font-size:12px; font-weight:600; color:var(--muted); margin-top:3px}
+.state{display:inline-block; font-weight:700; font-size:13px; padding:4px 9px; border-radius:0; background:var(--bg); box-shadow:inset 2px 0 0 var(--accent)}
 
-.list{background:var(--surface); border-radius:14px; overflow:hidden}
+.list{overflow:hidden}
 .item{display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); width:100%; background:none; border-left:0; border-right:0; border-top:0; text-align:left}
 .item:last-child{border-bottom:0}
 .item .main{flex:1; min-width:0}
 .item .t1{font-weight:600}
 .item .t2{font-size:13.5px; color:var(--muted)}
-.item .big{font-family:var(--cond); font-weight:600; font-size:24px; white-space:nowrap}
-.zbar{display:flex; height:5px; border-radius:3px; overflow:hidden; margin-top:6px; background:var(--line)}
+.item .big{font-family:var(--cond); font-weight:700; font-size:24px; white-space:nowrap; font-variant-numeric:tabular-nums}
+.zbar{display:flex; height:5px; gap:2px; margin-top:7px}
 .zbar i{display:block; height:100%}
-.month{font-size:14px; font-weight:600; color:var(--muted); margin:20px 4px 6px}
+.month{font-size:13px; font-weight:600; color:var(--muted); margin:22px 2px 8px}
 
 .week .item{align-items:flex-start}
-.week .wd{font-family:var(--cond); font-weight:700; font-size:20px; width:30px; padding-top:1px}
-.week .today{background:color-mix(in srgb, var(--bib) 22%, var(--surface))}
-.tag{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; vertical-align:1px}
+.week .wd{font-family:var(--cond); font-weight:700; font-size:19px; width:30px; padding-top:1px; text-transform:uppercase}
+.week .today{background:color-mix(in srgb, var(--accent) 9%, var(--surface)); box-shadow:inset 3px 0 0 var(--accent)}
+.tag{display:inline-block; width:8px; height:8px; margin-right:6px; vertical-align:1px; transform:skewX(-12deg)}
 
 .ztable .item{padding:10px 16px}
-.zchip{width:34px; height:26px; border-radius:6px; display:grid; place-items:center; font-family:var(--cond); font-weight:700; color:#fff; font-size:16px; flex:none}
+.zchip{width:34px; height:26px; display:grid; place-items:center; font-family:var(--cond); font-weight:700; color:#fff; font-size:16px; flex:none;
+  clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,0 100%)}
 
 .notes{margin:0; padding:0; list-style:none}
-.notes li{background:var(--surface); border-radius:12px; padding:12px 14px 12px 16px; border-left:4px solid var(--accent); margin-bottom:8px; font-size:15px}
+.notes li{background:var(--surface); padding:12px 14px 12px 16px; box-shadow:inset 3px 0 0 var(--data); margin-bottom:8px; font-size:15px}
 
 .chart{display:block; width:100%}
-.axis{display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:3px}
-.legend{display:flex; gap:14px; font-size:13px; color:var(--muted); margin-bottom:6px; flex-wrap:wrap}
-.legend b{display:inline-block; width:14px; height:3px; border-radius:2px; vertical-align:4px; margin-right:5px}
+.axis{display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted); margin-top:4px}
+.legend{display:flex; gap:14px; font-size:12px; color:var(--muted); margin-bottom:8px; flex-wrap:wrap}
+.legend b{display:inline-block; width:14px; height:3px; vertical-align:3px; margin-right:6px}
 
 .empty{padding:34px 4px 10px}
-.empty h2{font-size:34px; line-height:1.05; margin-top:10px}
+.empty h2{font-size:36px; line-height:1; margin-top:10px}
 .steps{padding-left:22px; margin:8px 0 18px}
 .steps li{margin-bottom:8px}
 
 .sheet{position:fixed; inset:0; z-index:20; background:var(--bg); overflow-y:auto; -webkit-overflow-scrolling:touch; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); display:none}
-.sheet.open{display:block; animation:up .22s ease-out}
-@keyframes up{from{transform:translateY(24px); opacity:.4} to{transform:none; opacity:1}}
+.sheet.open{display:block; animation:up .2s ease-out}
+@keyframes up{from{transform:translateY(20px); opacity:.4} to{transform:none; opacity:1}}
 @media (prefers-reduced-motion: reduce){ .sheet.open{animation:none} }
-.sheet .bar{position:sticky; top:0; background:var(--bg); display:flex; align-items:center; gap:10px; padding:12px 16px; max-width:560px; margin:0 auto; z-index:2}
-.sheet .bar h2{margin:0; flex:1; font-size:24px}
+.sheet .bar{position:sticky; top:0; background:var(--bg); display:flex; align-items:center; gap:10px; padding:12px 16px; max-width:560px; margin:0 auto; z-index:2; border-bottom:1px solid var(--line)}
+.sheet .bar h2{margin:0; flex:1; font-size:22px}
 
-.form label{display:block; font-size:14px; font-weight:500; margin:14px 0 5px}
+.form label{display:block; font-size:13px; font-weight:600; color:var(--muted); margin:16px 0 6px}
 .form .hint{font-size:13px; color:var(--muted); margin-top:4px}
-.form input,.form select{width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--line); background:var(--surface); font-size:16px}
+.form input,.form select{width:100%; padding:11px 12px; border-radius:0; border:1px solid var(--line); background:var(--surface); font-size:16px}
+.form input:focus,.form select:focus{border-color:var(--ink)}
 .form .two{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-.seg{display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden}
-.seg button{flex:1; border:0; background:var(--surface); padding:10px 4px; font-size:15px}
-.seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink); font-weight:600}
+.seg{display:flex; border:1px solid var(--line)}
+.seg button{flex:1; border:0; background:var(--surface); padding:10px 4px; font-family:var(--cond); font-weight:600; font-size:15px; letter-spacing:.06em; text-transform:uppercase}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--bg)}
 
-.toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(84px + env(safe-area-inset-bottom,0px)); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:10px; font-size:14.5px; z-index:30; max-width:90vw; display:none}
+.toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(84px + env(safe-area-inset-bottom,0px)); background:var(--ink); color:var(--bg); padding:11px 16px; box-shadow:inset 3px 0 0 var(--accent); font-size:14.5px; z-index:30; max-width:90vw; display:none}
 .toast.show{display:block}
-.privacy{font-size:13.5px; color:var(--muted); display:flex; gap:8px; align-items:flex-start; margin-top:18px}
+.privacy{font-size:13.5px; color:var(--muted); display:flex; gap:8px; align-items:flex-start; margin-top:20px}
 .privacy svg{flex:none; width:16px; height:16px; margin-top:2px}
 .scroll-x{overflow-x:auto}
 .rec{display:flex; gap:16px; align-items:center}
-.rec .score{font-family:var(--cond); font-weight:700; font-size:60px; line-height:.9; min-width:74px}
-.rec .score small{display:block; font-family:var(--body); font-size:12.5px; font-weight:500; color:var(--muted); line-height:1.2; margin-top:4px}
+.rec .score{font-family:var(--cond); font-weight:700; font-size:60px; line-height:.88; min-width:74px; font-variant-numeric:tabular-nums}
+.rec .score small{display:block; font-family:var(--cond); font-size:11.5px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); line-height:1.2; margin-top:6px}
 .factor{display:flex; gap:10px; padding:9px 0; border-top:1px solid var(--line); font-size:14.5px}
 .factor:first-of-type{margin-top:12px}
-.factor .dot{flex:none; width:8px; height:8px; border-radius:50%; margin-top:7px}
-.factor .fv{margin-left:auto; font-family:var(--cond); font-weight:600; font-size:19px; white-space:nowrap; padding-left:8px}
-textarea{width:100%; min-height:110px; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--surface); font:inherit; font-size:15px; color:var(--ink)}
-.code{font-family:ui-monospace, Menlo, Consolas, monospace; font-size:13.5px; background:var(--bg); border:1px solid var(--line); padding:1px 5px; border-radius:5px; word-break:break-all}
-.guide{background:var(--surface); border-radius:14px; padding:4px 16px 12px}
+.factor .dot{flex:none; width:8px; height:8px; margin-top:7px; transform:skewX(-12deg)}
+.factor .fv{margin-left:auto; font-family:var(--cond); font-weight:700; font-size:19px; white-space:nowrap; padding-left:8px; font-variant-numeric:tabular-nums}
+textarea{width:100%; min-height:110px; padding:10px 12px; border-radius:0; border:1px solid var(--line); background:var(--surface); font:inherit; font-size:15px; color:var(--ink)}
+.code{font-family:ui-monospace, Menlo, Consolas, monospace; font-size:13.5px; background:var(--bg); border:1px solid var(--line); padding:1px 5px; word-break:break-all}
+.guide{padding:4px 16px 12px}
 .guide ol{padding-left:20px; margin:8px 0}
 .guide li{margin-bottom:9px; font-size:15px}
+.version{font-family:var(--cond); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); text-align:center; margin-top:18px}

@@ -127,7 +127,22 @@ async function check(page, label, problems){
       await ctx.close();
     }
   }
+  // Offline-Start: erster Besuch mit Netz, dann Flugmodus und neu laden
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await ctx.newPage();
+    await page.route(u => !u.href.startsWith(url), r => r.abort());
+    page.on('pageerror', e => problems.push('offline: Skriptfehler: ' + e.message));
+    await page.goto(url);
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.reload(); await page.waitForTimeout(300);
+    await ctx.setOffline(true);
+    await page.reload(); await page.waitForTimeout(500);
+    const ok = await page.evaluate(() => !!document.querySelector('#tabs button') && !!window.JSZip && /laufbuch/i.test(document.body.innerText));
+    if (!ok) problems.push('offline: App startet ohne Netz nicht');
+    await ctx.close();
+  }
   await browser.close(); srv.close();
   if (problems.length){ console.error('Probleme gefunden:\n- ' + [...new Set(problems)].join('\n- ')); process.exit(1); }
-  console.log('Alle Ansichten ohne „undefined“/„NaN“ und ohne Skriptfehler (' + scenarios.length * 2 + ' Durchläufe).');
+  console.log('Alle Ansichten ohne „undefined“/„NaN“ und ohne Skriptfehler (' + scenarios.length * 2 + ' Durchläufe) – Offline-Start funktioniert.');
 })().catch(e => { console.error(e); process.exit(1); });
