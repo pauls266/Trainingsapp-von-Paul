@@ -1,4 +1,5 @@
 /* ================= Analyse-Kern (läuft komplett lokal) ================= */
+const APP_VERSION = '2.1.0';
 const FIT_EPOCH_OFFSET = 631065600;
 const BT = {0:[1,'u8',0xFF],1:[1,'s8',0x7F],2:[1,'u8',0xFF],3:[2,'s16',0x7FFF],4:[2,'u16',0xFFFF],5:[4,'s32',0x7FFFFFFF],6:[4,'u32',0xFFFFFFFF],7:[1,'str',null],8:[4,'f32',null],9:[8,'f64',null],10:[1,'u8',0],11:[2,'u16',0],12:[4,'u32',0],13:[1,'u8',0xFF],14:[8,'x',null],15:[8,'x',null],16:[8,'x',null]};
 const GMSG = {0:'file_id',3:'user_profile',7:'zones_target',18:'session',19:'lap',20:'record'};
@@ -617,5 +618,5 @@ function parseDuration(str){
   return 0;
 }
 
-if (typeof module !== 'undefined') module.exports = {parseShortcutText, parseHealthXmlLine, ingestWellness, newWellness, recovery, sleepOf, rhrOf, rhrBaseline, parseHKDate, sleepKind, dayKey, shiftDay, fmtHM, parseFit, buildActivity, estimateParams, derive, vdotFrom, predictTime, trainingPaces, estimateVdot, loadSeries, weeklyKm, buildPlan, fmtPace, fmtDur, hrBounds, zoneOf, parseDuration, bestByDistance, bestByTime, mondayOf};
+if (typeof module !== 'undefined') module.exports = {APP_VERSION, parseShortcutText, parseHealthXmlLine, ingestWellness, newWellness, recovery, sleepOf, rhrOf, rhrBaseline, parseHKDate, sleepKind, dayKey, shiftDay, fmtHM, parseFit, buildActivity, estimateParams, derive, vdotFrom, predictTime, trainingPaces, estimateVdot, loadSeries, weeklyKm, buildPlan, fmtPace, fmtDur, hrBounds, zoneOf, parseDuration, bestByDistance, bestByTime, mondayOf};
 

@@ -110,6 +110,7 @@ async function check(page, label, problems){
       await page.goto(url);
       await seed(page, acts, W, S);
       await page.reload(); await page.waitForTimeout(300);
+      if (!(await page.evaluate(() => !!window.JSZip))) problems.push(`${name}/${theme}: JSZip nicht geladen`);
       const L = s => `${name}/${theme}/${s}`;
       for (const tab of ['heute', 'laeufe', 'plan', 'zonen', 'trends']){
         await page.click(`#tabs button[data-tab="${tab}"]`);

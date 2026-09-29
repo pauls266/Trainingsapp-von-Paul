@@ -448,6 +448,7 @@ function openSettings(){
     <p class="small">Tageswerte: ${Object.keys(state.W.rhr).length} Tage Ruhepuls, ${Object.keys(state.W.sleep).length} Nächte Schlaf.</p>
     <p style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn danger" data-action="clearall">Alle Aktivitäten löschen</button><button class="btn danger" data-action="clearwell">Tageswerte löschen</button></p>
     ${privacyNote()}
+    <p class="small" style="margin-top:16px;text-align:center">Laufbuch · Version ${esc(APP_VERSION)}</p>
   </div>`;
   openSheet(h);
 }
