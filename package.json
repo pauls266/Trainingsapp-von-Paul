@@ -1,0 +1,9 @@
+{
+  "name": "laufbuch",
+  "private": true,
+  "description": "Private Trainingsanalyse im Browser – keine Abhängigkeiten, kein Build-Schritt.",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "ui-check": "node tools/ui-check.js"
+  }
+}
