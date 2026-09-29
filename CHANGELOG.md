@@ -10,7 +10,7 @@ Alle Änderungen am Laufbuch in verständlicher Sprache. Die aktuelle Version st
 
 ### Offline-Start
 - Die App startet jetzt auch ohne Internet (Flugmodus, Funkloch). Mit Internet wird immer zuerst die neueste Version geladen, die gespeicherte Kopie dient nur als Ersatz.
-- Damit das neue Icon erscheint: App einmal vom Home-Bildschirm löschen und in Safari über „Teilen → Zum Home-Bildschirm“ neu hinzufügen. Deine Daten bleiben dabei erhalten.
+- Das neue Icon erscheint erst, wenn die App neu zum Home-Bildschirm hinzugefügt wird. **Achtung:** Beim Löschen einer Home-Bildschirm-App löscht iOS auch deren gespeicherte Daten. Vorher also die Daten sichern (Sicherungsfunktion folgt) oder die App mit altem Icon behalten.
 
 ### Aufgeräumt
 - Die App besteht jetzt aus mehreren Dateien statt aus einer einzigen: `index.html` (Grundgerüst), `style.css` (Aussehen), `core.js` (alle Berechnungen) und `app.js` (Bedienung). Für dich ändert sich dadurch nichts.
