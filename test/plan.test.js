@@ -76,3 +76,10 @@ test('Plan mit alten Datensätzen ohne neue Felder', () => {
   for (const o of old) o.bestT = {};
   assertClean(plan({ goal: 'm' }, old));
 });
+
+test('Ziel-Check mit Kurzschreibweise „1:45“ für den Halbmarathon', () => {
+  const p = plan({ goal: 'hm', targetTime: '1:45' });
+  assertClean(p);
+  assert.ok(p.goalCheck);
+  assert.ok(Math.abs(p.goalCheck.pace - 6300 / 21.0975) < 0.01);
+});

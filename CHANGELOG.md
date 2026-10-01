@@ -2,6 +2,15 @@
 
 Alle Änderungen am Laufbuch in verständlicher Sprache. Die aktuelle Version steht in der App unten in den Einstellungen.
 
+## 2.1.1
+
+### Einstellungen überarbeitet
+- Zeiten (Zielzeit, Wettkampfzeit) gibst du jetzt in drei Feldern ein: Stunden, Minuten, Sekunden. Es öffnet sich die Zifferntastatur, ein Doppelpunkt ist nicht mehr nötig.
+- Fehler behoben: Eine Zielzeit wie „3:15“ wurde bisher als 3 Minuten 15 Sekunden gelesen. Jetzt gilt sie als 3 Stunden 15 Minuten.
+- Alle Felder sind gleich hoch und bleiben in ihrer Spalte, auch auf kleinen iPhones. Einheiten (bpm, Jahre, Std) stehen direkt im Feld.
+- Der Speichern-Knopf bleibt beim Scrollen unten sichtbar.
+- Unplausible Eingaben (z. B. 75 Minuten oder ein Ruhepuls von 300) werden markiert, statt gespeichert zu werden.
+
 ## 2.1.0
 
 ### Neues Design
@@ -10,7 +19,7 @@ Alle Änderungen am Laufbuch in verständlicher Sprache. Die aktuelle Version st
 
 ### Offline-Start
 - Die App startet jetzt auch ohne Internet (Flugmodus, Funkloch). Mit Internet wird immer zuerst die neueste Version geladen, die gespeicherte Kopie dient nur als Ersatz.
-- Damit das neue Icon erscheint: App einmal vom Home-Bildschirm löschen und in Safari über „Teilen → Zum Home-Bildschirm“ neu hinzufügen. Deine Daten bleiben dabei erhalten.
+- Das neue Icon erscheint erst, wenn die App neu zum Home-Bildschirm hinzugefügt wird. **Achtung:** Beim Löschen einer Home-Bildschirm-App löscht iOS auch deren gespeicherte Daten. Vorher also die Daten sichern (Sicherungsfunktion folgt) oder die App mit altem Icon behalten.
 
 ### Aufgeräumt
 - Die App besteht jetzt aus mehreren Dateien statt aus einer einzigen: `index.html` (Grundgerüst), `style.css` (Aussehen), `core.js` (alle Berechnungen) und `app.js` (Bedienung). Für dich ändert sich dadurch nichts.
