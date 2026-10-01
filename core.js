@@ -1,5 +1,5 @@
 /* ================= Analyse-Kern (läuft komplett lokal) ================= */
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.1.1';
 const FIT_EPOCH_OFFSET = 631065600;
 const BT = {0:[1,'u8',0xFF],1:[1,'s8',0x7F],2:[1,'u8',0xFF],3:[2,'s16',0x7FFF],4:[2,'u16',0xFFFF],5:[4,'s32',0x7FFFFFFF],6:[4,'u32',0xFFFFFFFF],7:[1,'str',null],8:[4,'f32',null],9:[8,'f64',null],10:[1,'u8',0],11:[2,'u16',0],12:[4,'u32',0],13:[1,'u8',0xFF],14:[8,'x',null],15:[8,'x',null],16:[8,'x',null]};
 const GMSG = {0:'file_id',3:'user_profile',7:'zones_target',18:'session',19:'lap',20:'record'};
@@ -442,7 +442,7 @@ function buildPlan(ctx){
 
   // Ziel-Check
   let goalCheck = null;
-  const tt = parseDuration(S.targetTime);
+  const tt = parseGoalTime(S.targetTime);
   if (tt > 0 && ctx.vd){
     const dist = goal === 'm' ? 42195 : 21097.5, need = vdotFrom(dist, tt), pred = predictTime(dist, ctx.vd.vdot);
     const diff = need - ctx.vd.vdot;
@@ -617,6 +617,28 @@ function parseDuration(str){
   if (p.length === 2) return p[0]*60+p[1];
   return 0;
 }
+// Zielzeit für HM/Marathon: „3:15“ bedeutet hier 3 h 15 min (unter 10 h ist mm:ss unplausibel)
+function parseGoalTime(str){
+  const p = String(str == null ? '' : str).trim().split(':').map(Number);
+  if (p.length === 2 && !p.some(isNaN) && p[0] < 10) return p[0]*3600 + p[1]*60;
+  return parseDuration(str);
+}
+// Sekunden -> [Stunden, Minuten, Sekunden] als Texte für die Eingabefelder
+function splitDuration(sec){
+  if (!(sec > 0)) return ['', '', ''];
+  sec = Math.round(sec);
+  return [String(Math.floor(sec/3600)), String(Math.floor(sec%3600/60)).padStart(2,'0'), String(sec%60).padStart(2,'0')];
+}
+// Eingabefelder -> „h:mm:ss“; leer -> ''; ungültig (keine Zahl, Minuten/Sekunden > 59) -> null
+function joinDuration(h, m, s){
+  const raw = [h, m, s].map(x => String(x == null ? '' : x).trim());
+  if (raw.every(x => x === '')) return '';
+  if (raw.some(x => x !== '' && !/^\d{1,3}$/.test(x))) return null;
+  const [hh, mm, ss] = raw.map(x => x === '' ? 0 : parseInt(x, 10));
+  if (mm > 59 || ss > 59) return null;
+  if (hh + mm + ss === 0) return '';
+  return hh + ':' + String(mm).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
+}
 
-if (typeof module !== 'undefined') module.exports = {APP_VERSION, parseShortcutText, parseHealthXmlLine, ingestWellness, newWellness, recovery, sleepOf, rhrOf, rhrBaseline, parseHKDate, sleepKind, dayKey, shiftDay, fmtHM, parseFit, buildActivity, estimateParams, derive, vdotFrom, predictTime, trainingPaces, estimateVdot, loadSeries, weeklyKm, buildPlan, fmtPace, fmtDur, hrBounds, zoneOf, parseDuration, bestByDistance, bestByTime, mondayOf};
+if (typeof module !== 'undefined') module.exports = {APP_VERSION, parseShortcutText, parseHealthXmlLine, ingestWellness, newWellness, recovery, sleepOf, rhrOf, rhrBaseline, parseHKDate, sleepKind, dayKey, shiftDay, fmtHM, parseFit, buildActivity, estimateParams, derive, vdotFrom, predictTime, trainingPaces, estimateVdot, loadSeries, weeklyKm, buildPlan, fmtPace, fmtDur, hrBounds, zoneOf, parseDuration, parseGoalTime, splitDuration, joinDuration, bestByDistance, bestByTime, mondayOf};
 

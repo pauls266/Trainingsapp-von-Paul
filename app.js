@@ -138,7 +138,7 @@ function viewHeute(){
       <div><div class="v">${fmtDur(hm)}</div><div class="l">Halbmarathon</div></div>
       <div><div class="v">${fmtDur(m)}</div><div class="l">Marathon</div></div></div>
       <p class="small muted" style="margin-top:6px">Grundlage: ${esc(vd.src)}.${vd.fromTraining ? ' Aus Trainingsdaten geschätzt – mit einem echten Wettkampfergebnis in den Einstellungen wird es genauer.' : ''}${state.S.goal === 'm' ? ' Die Marathonprognose setzt ausreichend lange Läufe voraus.' : ''}</p>`;
-    if (plan.goalCheck) h += `<div class="panel"><b>Dein Ziel ${esc(state.S.targetTime)}</b> (${fmtPace(plan.goalCheck.pace)}/km)<p class="small" style="margin:4px 0 0">${esc(plan.goalCheck.verdict)}</p></div>`;
+    if (plan.goalCheck) h += `<div class="panel"><b>Dein Ziel ${fmtDur(parseGoalTime(state.S.targetTime))}</b> (${fmtPace(plan.goalCheck.pace)}/km)<p class="small" style="margin:4px 0 0">${esc(plan.goalCheck.verdict)}</p></div>`;
   }
 
   const lastRun = acts.find(a => a.isRun);
@@ -280,8 +280,8 @@ function viewZonen(){
       ['Schwelle (T)', fmtPace(paces.T), 'Tempodauerläufe, 5–15-min-Intervalle', 'var(--z4)'],
       ['Intervall (I)', fmtPace(paces.I), '3–5-min-Intervalle, VO₂max', 'var(--z5)']
     ];
-    const tt = parseDuration(S.targetTime);
-    if (tt) rows.splice(3, 0, ['Dein Zieltempo', fmtPace(tt/((S.goal==='hm'?21.0975:42.195))), 'Aus deiner Zielzeit '+S.targetTime, 'var(--accent)']);
+    const tt = parseGoalTime(S.targetTime);
+    if (tt) rows.splice(3, 0, ['Dein Zieltempo', fmtPace(tt/((S.goal==='hm'?21.0975:42.195))), 'Aus deiner Zielzeit '+fmtDur(tt), 'var(--accent)']);
     h += `<p class="small muted">Nach Jack Daniels’ VDOT-Modell (angenähert), VDOT ${num(vd.vdot,1)}. Quelle: ${esc(vd.src)}.</p>
       <div class="list ztable">${rows.map(r => `<div class="item"><div class="zchip" style="background:${r[3]};width:6px;height:34px;border-radius:3px"></div><div class="main"><div class="t1">${r[0]}</div><div class="t2">${r[2]}</div></div><div class="big">${r[1]}<span class="small muted"> /km</span></div></div>`).join('')}</div>`;
   }
@@ -410,38 +410,43 @@ function openAct(id){
 /* ---------- Einstellungen ---------- */
 function openSettings(){
   const S = state.S, P = state.P;
-  const seg = (name, opts) => `<div class="seg" data-seg="${name}">${opts.map(o => `<button type="button" data-val="${o[0]}" aria-pressed="${String(S[name]) === String(o[0])}">${o[1]}</button>`).join('')}</div>`;
+  const seg = (name, opts, label) => `<div class="seg" data-seg="${name}" role="group" aria-label="${label}">${opts.map(o => `<button type="button" data-val="${o[0]}" aria-pressed="${String(S[name]) === String(o[0])}">${o[1]}</button>`).join('')}</div>`;
+  // Zeit als drei Felder (Std/Min/Sek) mit Zifferntastatur – kein Doppelpunkt nötig
+  const timeField = (id, sec, ph, hideZeroH) => {
+    const v = splitDuration(sec); if (hideZeroH && v[0] === '0') v[0] = '';
+    const f = (k, i, name, max) => `<label class="tpart"><input id="${id}-${k}" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="${max}" placeholder="${ph[i]}" value="${esc(v[i])}" aria-label="${name}"><span>${name}</span></label>`;
+    return `<div class="tfield" role="group" aria-labelledby="${id}-l">${f('h',0,'Std',1)}<b>:</b>${f('m',1,'Min',2)}<b>:</b>${f('s',2,'Sek',2)}</div>`;
+  };
+  const numField = (id, label, val, ph, unit, mode = 'numeric') => `<div class="field"><label for="${id}">${label}</label><div class="unit"><input id="${id}" type="text" inputmode="${mode}" autocomplete="off" placeholder="${esc(ph)}" value="${esc(val||'')}">${unit ? `<span>${unit}</span>` : ''}</div></div>`;
+  const goalPh = S.goal === 'hm' ? ['1','45','00'] : ['3','45','00'];
   const h = `<div class="bar"><h2>Einstellungen</h2><button class="icon-btn" data-action="close" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="wrap form">
-    <h2 style="margin-top:4px">Ziel</h2>
-    <label>Distanz</label>${seg('goal', [['hm','Halbmarathon'],['m','Marathon']])}
-    <div class="two"><div><label for="raceDate">Wettkampfdatum</label><input type="date" id="raceDate" value="${esc(S.raceDate||'')}"></div>
-    <div><label for="targetTime">Zielzeit</label><input id="targetTime" inputmode="numeric" placeholder="${S.goal==='hm'?'1:45:00':'3:45:00'}" value="${esc(S.targetTime||'')}"></div></div>
-    <label>Läufe pro Woche</label>${seg('runsPerWeek', [[3,'3'],[4,'4'],[5,'5'],[6,'6']])}
+    <h2 style="margin-top:6px">Ziel</h2>
+    <div class="field"><label>Distanz</label>${seg('goal', [['hm','Halbmarathon'],['m','Marathon']], 'Zieldistanz')}</div>
+    <div class="field"><label for="raceDate">Wettkampfdatum</label><input type="date" id="raceDate" value="${esc(S.raceDate||'')}"></div>
+    <div class="field"><label id="targetTime-l">Zielzeit</label>${timeField('targetTime', parseGoalTime(S.targetTime), goalPh, false)}</div>
+    <div class="field"><label>Läufe pro Woche</label>${seg('runsPerWeek', [[3,'3'],[4,'4'],[5,'5'],[6,'6']], 'Läufe pro Woche')}</div>
 
     <h2>Körperwerte</h2>
-    <p class="small muted">Leer lassen = automatisch aus deinen Daten geschätzt (grau angezeigt).</p>
+    <p class="small muted">Leer lassen = automatisch aus deinen Daten geschätzt. Der Schätzwert steht grau im Feld.</p>
     <div class="two">
-      <div><label for="maxHR">HFmax (bpm)</label><input id="maxHR" type="number" inputmode="numeric" placeholder="${P.maxHR}" value="${esc(S.maxHR||'')}"></div>
-      <div><label for="restHR">Ruhepuls (bpm)</label><input id="restHR" type="number" inputmode="numeric" placeholder="${P.restHR}" value="${esc(S.restHR||'')}"></div>
+      ${numField('maxHR', 'HFmax', S.maxHR, P.maxHR, 'bpm')}
+      ${numField('restHR', 'Ruhepuls', S.restHR, P.restHR, 'bpm')}
     </div>
-    <label for="lthr">Laktatschwellen-Puls (bpm)</label><input id="lthr" type="number" inputmode="numeric" placeholder="${P.lthr}" value="${esc(S.lthr||'')}">
+    ${numField('lthr', 'Laktatschwellen-Puls', S.lthr, P.lthr, 'bpm')}
     <div class="hint">Aktuell: ${esc(P.src.lthr)}. Wichtigster Wert für deine Zonen.</div>
     <div class="two">
-      <div><label>Geschlecht</label>${seg('sex', [['m','männlich'],['f','weiblich']])}</div>
-      <div><label for="age">Alter</label><input id="age" type="number" inputmode="numeric" value="${esc(S.age||'')}"></div>
+      ${numField('age', 'Alter', S.age, '', 'Jahre')}
+      ${numField('sleepTarget', 'Schlafziel', String(S.sleepTarget||'').replace('.', ','), '7,5', 'Std', 'decimal')}
     </div>
-    <div class="hint">Geschlecht beeinflusst nur die TRIMP-Belastungsformel.</div>
-    <label for="sleepTarget">Schlafziel (Stunden)</label><input id="sleepTarget" inputmode="decimal" placeholder="7,5" value="${esc(S.sleepTarget||'')}">
-    <div class="hint">Grundlage für die Schlafbewertung in der Erholung.</div>
+    <div class="field"><label>Geschlecht</label>${seg('sex', [['m','männlich'],['f','weiblich']], 'Geschlecht')}</div>
+    <div class="hint">Beeinflusst nur die Belastungsformel (TRIMP). Das Schlafziel ist die Grundlage für die Schlafbewertung.</div>
 
     <h2>Letztes Wettkampfergebnis</h2>
     <p class="small muted">Optional, macht Tempobereiche und Prognosen deutlich genauer. Nimm ein Rennen der letzten 2–3 Monate.</p>
-    <div class="two">
-      <div><label for="raceDist">Distanz</label><select id="raceDist">${[['','– keins –'],['5','5 km'],['10','10 km'],['21.0975','Halbmarathon'],['42.195','Marathon']].map(o => `<option value="${o[0]}" ${String(S.raceDist||'')===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></div>
-      <div><label for="raceTime">Zeit</label><input id="raceTime" inputmode="numeric" placeholder="z. B. 45:30" value="${esc(S.raceTime||'')}"></div>
-    </div>
-    <p style="margin-top:20px"><button class="btn" data-action="save">Speichern</button></p>
+    <div class="field"><label for="raceDist">Distanz</label><div class="select"><select id="raceDist">${[['','– keins –'],['5','5 km'],['10','10 km'],['21.0975','Halbmarathon'],['42.195','Marathon']].map(o => `<option value="${o[0]}" ${String(S.raceDist||'')===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></div></div>
+    <div class="field"><label id="raceTime-l">Zeit</label>${timeField('raceTime', parseDuration(S.raceTime), ['0','45','30'], true)}</div>
+    <div class="savebar"><button class="btn" data-action="save">Speichern</button><span class="small muted">Änderungen gelten sofort für Zonen, Prognose und Plan.</span></div>
 
     <h2>Daten</h2>
     <p class="small">${state.acts.length} Aktivitäten gespeichert. Die Original-FIT-Dateien bleiben in Garmin Connect, du kannst sie jederzeit neu importieren.</p>
@@ -453,18 +458,24 @@ function openSettings(){
   openSheet(h);
 }
 async function saveSettings(){
-  const g = id => $('#'+id).value.trim();
+  const g = id => { const el = $('#'+id); return el ? el.value.trim() : ''; };
+  const time = id => joinDuration(g(id+'-h'), g(id+'-m'), g(id+'-s'));
+  const bad = (id, msg) => { const el = $('#'+id); if (el){ el.setAttribute('aria-invalid', 'true'); el.focus(); } toast(msg); };
+  document.querySelectorAll('.form [aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
+  const tt = time('targetTime'), rt = time('raceTime');
+  if (tt === null) return bad('targetTime-m', 'Zielzeit prüfen: nur Ziffern, Minuten und Sekunden höchstens 59.');
+  if (rt === null) return bad('raceTime-m', 'Wettkampfzeit prüfen: nur Ziffern, Minuten und Sekunden höchstens 59.');
+  const nums = [['maxHR', 120, 230, 'HFmax'], ['restHR', 25, 100, 'Ruhepuls'], ['lthr', 100, 220, 'Laktatschwellen-Puls'], ['age', 10, 99, 'Alter']];
+  for (const [id, lo, hi, name] of nums){ const v = g(id); if (v && !(+v >= lo && +v <= hi)) return bad(id, `${name}: bitte eine Zahl zwischen ${lo} und ${hi} eingeben.`); }
+  const sl = g('sleepTarget'); if (sl && !(parseNum(sl) >= 4 && parseNum(sl) <= 12)) return bad('sleepTarget', 'Schlafziel: bitte zwischen 4 und 12 Stunden eingeben.');
   const S = state.S;
-  S.raceDate = g('raceDate'); S.targetTime = g('targetTime');
+  S.raceDate = g('raceDate'); S.targetTime = tt; S.raceTime = rt;
   S.maxHR = g('maxHR'); S.restHR = g('restHR'); S.lthr = g('lthr'); S.age = g('age');
-  S.raceDist = g('raceDist'); S.raceTime = g('raceTime'); S.sleepTarget = g('sleepTarget');
-  if (S.targetTime && !parseDuration(S.targetTime)) return toast('Zielzeit bitte als h:mm:ss eingeben, z. B. 3:45:00');
-  if (S.raceTime && !parseDuration(S.raceTime)) return toast('Wettkampfzeit bitte als mm:ss oder h:mm:ss eingeben');
-  await DB.setMeta('settings', JSON.parse(JSON.stringify(S)));
+  S.raceDist = g('raceDist'); S.sleepTarget = sl;
+  try { await DB.setMeta('settings', JSON.parse(JSON.stringify(S))); } catch(e){}
   recompute(); closeSheet(); render(); toast('Gespeichert');
 }
 
-/* ---------- Import ---------- */
 async function importFiles(files){
   const existing = new Set(state.acts.map(a => a.id));
   let added = 0, dup = 0, other = 0, failed = 0, seen = 0;

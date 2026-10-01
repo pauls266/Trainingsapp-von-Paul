@@ -127,6 +127,48 @@ async function check(page, label, problems){
       await ctx.close();
     }
   }
+  // Einstellungen: Feldgrößen, Überlappungen und Zeiteingabe auf schmalem (iPhone SE) und normalem Bildschirm
+  for (const width of [320, 390]){
+    const ctx = await browser.newContext({ viewport: { width, height: 800 } });
+    const page = await ctx.newPage();
+    await page.route(u => !u.href.startsWith(url), r => r.abort());
+    page.on('pageerror', e => problems.push(`Einstellungen/${width}: Skriptfehler: ${e.message}`));
+    await page.goto(url); await page.waitForTimeout(200);
+    await page.click('#settingsBtn'); await page.waitForTimeout(200);
+    const lay = await page.evaluate(() => {
+      const out = [], sheet = document.querySelector('#sheet');
+      if (sheet.scrollWidth > sheet.clientWidth + 1) out.push('Menü scrollt seitlich');
+      const ctrls = [...document.querySelectorAll('.form input:not([type=hidden]), .form select, .form .seg')];
+      const hs = new Set(ctrls.map(c => Math.round(c.getBoundingClientRect().height)));
+      if (hs.size > 1) out.push('unterschiedliche Feldhöhen: ' + [...hs].join(', '));
+      for (const c of ctrls){
+        const r = c.getBoundingClientRect(), f = c.closest('.field') || c.parentElement, pr = f.getBoundingClientRect();
+        if (r.right > pr.right + 1 || r.left < pr.left - 1) out.push((c.id || c.className) + ' ragt aus seiner Spalte');
+      }
+      for (const row of document.querySelectorAll('.form .two')){
+        const [a, b] = [...row.children].map(x => x.getBoundingClientRect());
+        if (a && b && a.right > b.left) out.push('Spalten überlappen');
+      }
+      const tf = document.querySelectorAll('#targetTime-h, #targetTime-m, #targetTime-s');
+      if ([...tf].some(i => i.inputMode !== 'numeric')) out.push('Zeitfelder ohne Zifferntastatur');
+      return out;
+    });
+    lay.forEach(x => problems.push(`Einstellungen/${width}: ${x}`));
+    if (process.env.SHOTS) await page.screenshot({ path: path.join(process.env.SHOTS, `einstellungen-${width}.png`), fullPage: false });
+    await page.fill('#targetTime-h', '3'); await page.fill('#targetTime-m', '15');
+    await page.fill('#raceTime-m', '19'); await page.fill('#raceTime-s', '30');
+    await page.click('.savebar [data-action="save"]'); await page.waitForTimeout(300);
+    const saved = await page.evaluate(() => new Promise(res => {
+      const r = indexedDB.open('laufbuch'); r.onsuccess = () => { const g = r.result.transaction('meta').objectStore('meta').get('settings'); g.onsuccess = () => res(g.result); };
+    }));
+    if (!saved || saved.targetTime !== '3:15:00' || saved.raceTime !== '0:19:30') problems.push(`Einstellungen/${width}: Zeiten falsch gespeichert: ${JSON.stringify(saved && [saved.targetTime, saved.raceTime])}`);
+    await page.click('#settingsBtn'); await page.waitForTimeout(200);
+    await page.fill('#targetTime-m', '75'); await page.click('.savebar [data-action="save"]'); await page.waitForTimeout(200);
+    if (!(await page.evaluate(() => document.querySelector('#sheet').classList.contains('open') && document.querySelector('#targetTime-m').getAttribute('aria-invalid') === 'true')))
+      problems.push(`Einstellungen/${width}: ungültige Minuten (75) werden nicht abgefangen`);
+    await ctx.close();
+  }
+
   // Offline-Start: erster Besuch mit Netz, dann Flugmodus und neu laden
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });

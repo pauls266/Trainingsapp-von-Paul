@@ -98,3 +98,28 @@ test('Zeitangaben einlesen und formatieren', () => {
   assert.equal(core.fmtDur(3725), '1:02:05');
   assert.equal(core.fmtHM(455), '7:35 h');
 });
+
+test('Zielzeit: „3:15“ bedeutet 3 h 15 min, nicht 3 min 15 s', () => {
+  assert.equal(core.parseGoalTime('3:15'), 3 * 3600 + 15 * 60);
+  assert.equal(core.parseGoalTime('1:45:00'), 6300);
+  assert.equal(core.parseGoalTime('3:15:30'), 11730);
+  assert.equal(core.parseGoalTime(''), 0);
+  assert.equal(core.parseGoalTime('abc'), 0);
+});
+
+test('Zeitfelder (Std/Min/Sek) zusammensetzen und zerlegen', () => {
+  assert.equal(core.joinDuration('3', '15', ''), '3:15:00');
+  assert.equal(core.joinDuration('', '19', '30'), '0:19:30');
+  assert.equal(core.joinDuration(' 1 ', '5', '7'), '1:05:07');
+  assert.equal(core.joinDuration('', '', ''), '');
+  assert.equal(core.joinDuration('0', '0', '0'), '');
+  assert.equal(core.joinDuration('3', '75', '0'), null);
+  assert.equal(core.joinDuration('3', '1', '60'), null);
+  assert.equal(core.joinDuration('3', '1,5', ''), null);
+  assert.deepEqual(core.splitDuration(11700), ['3', '15', '00']);
+  assert.deepEqual(core.splitDuration(1170), ['0', '19', '30']);
+  assert.deepEqual(core.splitDuration(0), ['', '', '']);
+  // Rundweg: gespeicherter Text bleibt mit parseDuration lesbar
+  assert.equal(core.parseDuration(core.joinDuration('', '19', '30')), 1170);
+  assert.equal(core.parseDuration(core.joinDuration('3', '15', '')), 11700);
+});

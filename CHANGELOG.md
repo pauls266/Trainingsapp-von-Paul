@@ -2,6 +2,15 @@
 
 Alle Änderungen am Laufbuch in verständlicher Sprache. Die aktuelle Version steht in der App unten in den Einstellungen.
 
+## 2.1.1
+
+### Einstellungen überarbeitet
+- Zeiten (Zielzeit, Wettkampfzeit) gibst du jetzt in drei Feldern ein: Stunden, Minuten, Sekunden. Es öffnet sich die Zifferntastatur, ein Doppelpunkt ist nicht mehr nötig.
+- Fehler behoben: Eine Zielzeit wie „3:15“ wurde bisher als 3 Minuten 15 Sekunden gelesen. Jetzt gilt sie als 3 Stunden 15 Minuten.
+- Alle Felder sind gleich hoch und bleiben in ihrer Spalte, auch auf kleinen iPhones. Einheiten (bpm, Jahre, Std) stehen direkt im Feld.
+- Der Speichern-Knopf bleibt beim Scrollen unten sichtbar.
+- Unplausible Eingaben (z. B. 75 Minuten oder ein Ruhepuls von 300) werden markiert, statt gespeichert zu werden.
+
 ## 2.1.0
 
 ### Neues Design

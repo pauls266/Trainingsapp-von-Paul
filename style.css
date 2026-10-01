@@ -119,16 +119,47 @@ p{margin:0 0 10px}
 @keyframes up{from{transform:translateY(20px); opacity:.4} to{transform:none; opacity:1}}
 @media (prefers-reduced-motion: reduce){ .sheet.open{animation:none} }
 .sheet .bar{position:sticky; top:0; background:var(--bg); display:flex; align-items:center; gap:10px; padding:12px 16px; max-width:560px; margin:0 auto; z-index:2; border-bottom:1px solid var(--line)}
-.sheet .bar h2{margin:0; flex:1; font-size:22px}
+.sheet .bar h2{margin:0; flex:1; min-width:0; font-size:21px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.sheet .bar .btn,.sheet .bar .icon-btn{flex:none}
 
-.form label{display:block; font-size:13px; font-weight:600; color:var(--muted); margin:16px 0 6px}
-.form .hint{font-size:13px; color:var(--muted); margin-top:4px}
-.form input,.form select{width:100%; padding:11px 12px; border-radius:0; border:1px solid var(--line); background:var(--surface); font-size:16px}
-.form input:focus,.form select:focus{border-color:var(--ink)}
-.form .two{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-.seg{display:flex; border:1px solid var(--line)}
-.seg button{flex:1; border:0; background:var(--surface); padding:10px 4px; font-family:var(--cond); font-weight:600; font-size:15px; letter-spacing:.06em; text-transform:uppercase}
+/* Formular: alle Felder gleich hoch, ohne iOS-Standardform, nichts ragt aus seiner Spalte */
+.form{--fh:48px}
+.form .field{min-width:0; margin-top:16px}
+.form .two{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px}
+.form .two .field{margin-top:16px}
+.form label{display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin:0 0 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.form .hint{font-size:13px; color:var(--muted); margin-top:6px}
+.form input,.form select{-webkit-appearance:none; appearance:none; display:block; width:100%; min-width:0; max-width:100%; height:var(--fh); margin:0;
+  padding:0 12px; border-radius:0; border:1px solid var(--line); background:var(--surface); color:var(--ink); font-size:17px; line-height:normal}
+.form input::placeholder{color:var(--muted); opacity:.75}
+.form input:focus,.form select:focus{border-color:var(--ink); outline:none; box-shadow:inset 0 0 0 1px var(--ink)}
+.form input[aria-invalid="true"]{border-color:var(--hr); box-shadow:inset 0 0 0 1px var(--hr)}
+/* Datum: iOS gibt dem Feld sonst eine eigene Höhe und zentrierten Text */
+.form input[type="date"]{text-align:left}
+.form input[type="date"]::-webkit-date-and-time-value{text-align:left; margin:0}
+.form input[type="date"]::-webkit-calendar-picker-indicator{opacity:.6}
+/* Auswahlliste mit eigenem Pfeil */
+.form .select{position:relative}
+.form .select::after{content:""; position:absolute; right:14px; top:50%; width:8px; height:8px; margin-top:-6px; border-right:2px solid var(--muted); border-bottom:2px solid var(--muted); transform:rotate(45deg); pointer-events:none}
+.form .select select{padding-right:36px}
+/* Zahl mit Einheit im Feld */
+.form .unit{position:relative}
+.form .unit input{padding-right:52px; font-variant-numeric:tabular-nums}
+.form .unit span{position:absolute; right:12px; top:0; height:var(--fh); display:flex; align-items:center; font-family:var(--cond); font-size:13px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); pointer-events:none}
+/* Zeit: Std : Min : Sek */
+.form .tfield{display:grid; grid-template-columns:minmax(0,1fr) 10px minmax(0,1fr) 10px minmax(0,1fr); align-items:start; max-width:300px}
+.form .tfield > b{height:var(--fh); display:flex; align-items:center; justify-content:center; font-family:var(--cond); font-size:20px; color:var(--muted)}
+.form .tpart{display:block; margin:0; white-space:normal; overflow:visible}
+.form .tpart input{text-align:center; padding:0 4px; font-family:var(--cond); font-size:22px; font-weight:600; font-variant-numeric:tabular-nums}
+.form .tpart span{display:block; text-align:center; margin-top:4px; font-family:var(--cond); font-size:11.5px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+.seg{display:flex; border:1px solid var(--line); min-width:0}
+.seg button{flex:1 1 0; min-width:0; height:calc(var(--fh, 48px) - 2px); border:0; background:var(--surface); padding:0 6px; font-family:var(--cond); font-weight:600; font-size:15px; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+@media (max-width:360px){ .seg button{font-size:14px; letter-spacing:.02em} }
+.seg button + button{border-left:1px solid var(--line)}
 .seg button[aria-pressed="true"]{background:var(--ink); color:var(--bg)}
+.savebar{position:sticky; bottom:0; z-index:2; display:flex; align-items:center; gap:12px; margin:24px -16px 0; padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px)); background:var(--bg); border-top:1px solid var(--line)}
+.savebar .btn{flex:none}
+.savebar .small{line-height:1.3}
 
 .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(84px + env(safe-area-inset-bottom,0px)); background:var(--ink); color:var(--bg); padding:11px 16px; box-shadow:inset 3px 0 0 var(--accent); font-size:14.5px; z-index:30; max-width:90vw; display:none}
 .toast.show{display:block}
