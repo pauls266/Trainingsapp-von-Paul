@@ -4,9 +4,10 @@
    einer alten Version hängen. Trainingsdaten werden hier NICHT gespeichert –
    die liegen weiterhin nur in der Datenbank im Browser.
    Die Versionsnummer muss zu APP_VERSION in core.js passen (wird getestet). */
-const VERSION = '2.1.1';
+const VERSION = '2.2.0';
 const CACHE = 'laufbuch-' + VERSION;
-const FILES = ['./', './index.html', './style.css', './core.js', './app.js', './vendor/jszip-3.10.1.min.js',
+const FILES = ['./', './index.html', './style.css', './core.js', './exercises.js', './charts.js', './map.js', './app.js', './vendor/jszip-3.10.1.min.js',
+  './vendor/leaflet-1.9.4/leaflet.js', './vendor/leaflet-1.9.4/leaflet.css',
   './manifest.webmanifest', './icons/icon.svg', './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png'];
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 const TIMEOUT = 4000; // bei sehr langsamem Netz nach 4 s auf die gespeicherte Kopie ausweichen
