@@ -12,6 +12,7 @@ const T = {
 };
 
 const toFitTs = ms => Math.round(ms/1000) - FIT_EPOCH_OFFSET;
+const SEMI = 180 / 2147483648;
 
 class FitWriter {
   constructor({bigEndian = false} = {}){ this.be = bigEndian; this.bytes = []; this.defs = {}; }
@@ -103,6 +104,8 @@ function makeActivity(opts = {}){
   }
   const dev = opts.devFields ? [{num:0, size:2}, {num:1, size:4}] : [];
   const recFields = [{num:253, type:'u32'}, {num:3, type:'u8'}, {num:5, type:'u32'}, {num:73, type:'u32'}, {num:4, type:'u8'}, {num:78, type:'u32'}];
+  if (opts.gps) recFields.push({num:0, type:'s32'}, {num:1, type:'s32'});
+  if (opts.profileName){ w.define(1, 12, [{num:0, type:'enum'}, {num:1, type:'enum'}, {num:3, type:'str', count:16}]); w.data(1, {0: sport, 1: sub, 3: opts.profileName}); }
   w.define(2, 20, recFields, dev);
   if (opts.compressed) w.define(3, 20, recFields.slice(1), dev);
   let dist = 0, hrSum = 0, hrN = 0, hrMax = 0;
@@ -110,9 +113,18 @@ function makeActivity(opts = {}){
     if (t > 0) dist += spd(t) * step;
     const hr = hrF(t);
     if (hr){ hrSum += hr; hrN++; hrMax = Math.max(hrMax, hr); }
-    const v = {253: ts0 + t, 3: hr || null, 5: Math.round(dist*100), 73: Math.round(spd(t)*1000), 4: opts.cadence || 85, 78: Math.round((100+500)*5)};
+    const v = {253: ts0 + t, 3: hr || null, 5: Math.round(dist*100), 73: Math.round(spd(t)*1000), 4: opts.cadence || 85, 78: Math.round(((opts.alt ? opts.alt(t, dist) : 100)+500)*5)};
+    if (opts.gps){ const [la, lo] = opts.gps(t, dist); v[0] = Math.round(la / SEMI); v[1] = Math.round(lo / SEMI); }
     if (opts.compressed && t % 60 !== 0) w.data(3, v, {compressedOffset: (ts0 + t) & 0x1F});
     else w.data(2, v);
+  }
+  if (opts.laps){ // [{t0, dur, dist, hr}]
+    w.define(5, 19, [{num:253, type:'u32'}, {num:2, type:'u32'}, {num:7, type:'u32'}, {num:8, type:'u32'}, {num:9, type:'u32'}, {num:15, type:'u8'}, {num:110, type:'u32'}, {num:24, type:'enum'}]);
+    for (const l of opts.laps) w.data(5, {253: ts0 + l.t0 + l.dur, 2: ts0 + l.t0, 7: l.dur*1000, 8: l.dur*1000, 9: Math.round(l.dist*100), 15: l.hr || null, 110: Math.round(l.dist/l.dur*1000), 24: 2});
+  }
+  if (opts.sets){ // [{t0, dur, reps, kg, cat, sub, rest}]
+    w.define(6, 225, [{num:254, type:'u32'}, {num:0, type:'u32'}, {num:3, type:'u16'}, {num:4, type:'u16'}, {num:5, type:'u8'}, {num:6, type:'u32'}, {num:7, type:'u16', count:2}, {num:8, type:'u16', count:2}]);
+    for (const x of opts.sets) w.data(6, {254: ts0 + x.t0 + x.dur, 0: x.dur*1000, 3: x.reps, 4: x.kg != null ? Math.round(x.kg*16) : null, 5: x.rest ? 0 : 1, 6: ts0 + x.t0, 7: x.cat != null ? [x.cat] : null, 8: x.sub != null ? [x.sub] : null});
   }
   if (!opts.noSession){
     w.define(4, 18, [{num:253, type:'u32'}, {num:2, type:'u32'}, {num:5, type:'enum'}, {num:6, type:'enum'},
