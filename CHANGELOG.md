@@ -2,6 +2,29 @@
 
 Alle Änderungen am Laufbuch in verständlicher Sprache. Die aktuelle Version steht in der App unten in den Einstellungen.
 
+## 2.2.0
+
+### Neu
+- **Interaktive Diagramme:** Wischen zeigt die Werte an jeder Stelle, mit zwei Fingern zoomst und verschiebst du, doppelt tippen setzt zurück. Jedes Diagramm lässt sich über das Symbol oben rechts im Vollbild öffnen. Am PC: darüberfahren, Strg + Mausrad zoomt.
+- **Karte:** Bei Aktivitäten mit GPS wird die Strecke gezeichnet und nach Herzfrequenzzone eingefärbt. Beim Wischen in den Diagrammen zeigt ein Punkt die Stelle auf der Karte. Der Kartenhintergrund (OpenStreetMap) ist standardmäßig aus und lässt sich in den Einstellungen einschalten.
+- **VO2max-Schätzung** aus Tempo und Puls gleichmäßiger, flacher Abschnitte, mit Verlauf.
+- **Trainingszustand:** klare Einschätzung (z. B. Produktiv, Stabil, Überlastet, Erholung) mit konkreten Punkten „Das verbessert sich“ und „Darauf achten“.
+- **Krafttraining:** Übungen, Sätze, Wiederholungen und Gewichte aus der Uhr (Profil „Krafttraining“) oder von Hand eingetragen. Auswertung: Sätze pro Muskelgruppe, Verlauf, Entwicklung je Übung (geschätztes Maximum).
+- **Anstrengung (RPE)** pro Aktivität eintragen. Krafttraining und Einheiten ohne Puls gehen damit realistischer in die Belastung ein.
+- **Wochenplan mit Kraft und festen Terminen:** Krafteinheiten (Anzahl in den Einstellungen), gern samstags kombiniert mit einem lockeren Lauf. Fußball montags als optionaler fester Termin, keine Qualitätseinheit am Tag danach.
+- **Runden** in der Detailansicht, Intervalle werden automatisch erkannt.
+- **Alle Sportarten** nach dem offiziellen Garmin-Profil, Mehrsport-Dateien werden in einzelne Aktivitäten aufgeteilt. Fußball mit GPS: Sprints und Höchstgeschwindigkeit.
+- Neuer Bereich **Belastung nach Sportart** in Trends.
+
+### Verbessert
+- Etwas mehr Glanz, dezente Tipp-Effekte, gleitende Markierung in der Tab-Leiste.
+- Kein Hineinzoomen der Seite mehr per Doppeltipp oder zwei Fingern – fühlt sich mehr nach App an.
+- Die maximale Herzfrequenz aus der Uhr wird jetzt genutzt (vorher wurde sie ignoriert).
+- Tab „Läufe“ heißt jetzt „Training“ und hat Filter für Laufen, Kraft und Andere.
+
+### Hinweis
+- Für Karte, Runden und Sätze bei schon importierten Aktivitäten: die Garmin-Dateien einfach erneut importieren. Bestehende Aktivitäten werden dabei ergänzt, deine Eingaben bleiben erhalten.
+
 ## 2.1.1
 
 ### Einstellungen überarbeitet

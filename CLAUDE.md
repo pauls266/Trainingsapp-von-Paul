@@ -18,7 +18,17 @@ und auf dem iPhone über „Zum Home-Bildschirm“ installiert.
 - Garmin bietet Privatpersonen **keine offizielle API** (Garmin Connect Developer Program nur für Unternehmen). Inoffizielle Garmin-Logins (z. B. python-garminconnect) wurden nicht gewählt. Nicht ohne ausdrückliche Zustimmung einführen.
 - Oberfläche komplett auf **Deutsch**, mobile-first fürs iPhone.
 
-## 2. Aktueller Stand (Version 2)
+## 2. Aktueller Stand (Version 2.2)
+
+### Dateien
+`index.html` (Gerüst), `style.css`, `core.js` (alle Berechnungen, ohne DOM, auch in Node testbar), `exercises.js` (Übungsnamen aus dem FIT SDK, erzeugt mit `tools/gen-exercises.mjs`), `charts.js` (interaktive SVG-Diagramme), `map.js` (Karte mit Leaflet), `app.js` (Oberfläche), `sw.js` + `manifest.webmanifest` (Offline-Start), `vendor/` (JSZip 3.10.1, Leaflet 1.9.4 aus npm). Tests: `npm test` (node --test), Oberflächenprüfung: `npm run ui-check` (Playwright/Chromium). Versionsnummer in `core.js` (`APP_VERSION`) und `sw.js` (`VERSION`) immer gemeinsam erhöhen, `CHANGELOG.md` pflegen.
+
+### Neu in 2.2 (Kurzfassung)
+- Aktivitäts-Schema `v: 2` (`SCHEMA` in core.js): GPS-Spur im 5-s-Stream (`stream.la/lo`, Grad × 1e5), `laps`, `sets` (Krafttraining, FIT-Nachricht 225), `kind` (run/strength/team/bike/swim/walk/other), Mehrsport-Sessions als eigene Aktivitäten. Beim erneuten Import werden ältere Datensätze ersetzt; manuell eingetragene (`src: 'manual'`) nie.
+- Eigene Angaben pro Aktivität (z. B. RPE) liegen getrennt im Store `meta` unter `annot` (`{id: {rpe}}`), damit ein Re-Import sie nicht überschreibt.
+- VO2max-Schätzung (`vo2maxRun`, Daniels + Swain), Trainingszustand (`trainingStatus`), Kraft-Auswertung (`strengthSummary`), Wochenplan mit `S.strengthPerWeek`, `S.teamDays` (0 = Mo), `S.teamSport`. Kartenhintergrund nur mit `S.mapTiles` (Standard aus, Datenschutz).
+
+### Stand Version 2 (Grundlage)
 
 ### Datenquellen
 1. **FIT-Dateien** aus Garmin Connect („Original exportieren“ → ZIP) oder dem kompletten Garmin-Datenexport (verschachtelte ZIPs). Import über Datei-Auswahl, ZIPs werden mit JSZip (cdnjs, 3.10.1) entpackt, auch rekursiv.
