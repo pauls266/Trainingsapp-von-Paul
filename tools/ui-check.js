@@ -221,10 +221,15 @@ async function check(page, label, problems){
     await page.evaluate(id => document.querySelector(`[data-act="${id}"]`) ? document.querySelector(`[data-act="${id}"]`).click() : null, anyGps.id);
     await page.evaluate(id => { if (!document.querySelector('#sheet.open')) { const b = document.createElement('button'); b.dataset.act = id; document.body.appendChild(b); b.click(); b.remove(); } }, anyGps.id);
     await page.waitForTimeout(800);
-    await P(() => !!document.querySelector('#sheet [data-map] .leaflet-overlay-pane path'), 'Karte zeigt keine Strecke');
+    await P(() => { const i = RouteMap.info(); const c = document.querySelector('#sheet [data-map] canvas'); return i.length === 1 && i[0].points > 10 && c && c.width > 50 && c.height > 50; }, 'Karte zeigt keine Strecke');
     const hb = await (await page.$('#sheet .chart-box')).boundingBox();
     await page.mouse.move(hb.x + hb.width * 0.6, hb.y + 40); await page.waitForTimeout(150);
-    await P(() => [...document.querySelectorAll('#sheet .leaflet-overlay-pane path')].some(p => p.getAttribute('stroke-opacity') === '1' && p.getAttribute('fill-opacity') === '1' && p.getAttribute('stroke') === '#fff'), 'Kartenmarkierung folgt dem Diagramm nicht');
+    await P(() => RouteMap.info().some(m => m.marker && m.at > 0), 'Kartenmarkierung folgt dem Diagramm nicht');
+    // Antippen öffnet die Karte im Vollbild mit Zoom-Knöpfen
+    await page.click('#sheet [data-map]'); await page.waitForTimeout(900);
+    await P(() => document.querySelector('#zoom').classList.contains('open') && !!document.querySelector('#zoom .map-full canvas') && !!document.querySelector('#zoom .leaflet-control-zoom'), 'Karte öffnet nicht im Vollbild');
+    if (process.env.SHOTS) await page.screenshot({ path: path.join(process.env.SHOTS, 'karte-vollbild.png') });
+    await page.keyboard.press('Escape'); await page.waitForTimeout(150);
     if (process.env.SHOTS){ await page.$eval('#sheet', el => el.scrollTop = 0); await page.waitForTimeout(100); await page.screenshot({ path: path.join(process.env.SHOTS, 'detail-oben.png'), fullPage: false }); }
     if (withGps) await P(() => /Runden/i.test(document.querySelector('#sheet').innerText), 'Runden fehlen');
     await page.click('#sheet [data-rpe] button[data-val="6"]'); await page.waitForTimeout(200);
@@ -248,6 +253,56 @@ async function check(page, label, problems){
     await P(() => /Fußball/i.test(document.body.innerText) && /(Krafttraining|Rumpf)/i.test(document.body.innerText), 'Plan zeigt Fußball oder Kraft nicht');
     if (process.env.SHOTS) await page.screenshot({ path: path.join(process.env.SHOTS, 'plan.png'), fullPage: true });
     await P(() => getComputedStyle(document.documentElement).touchAction === 'manipulation', 'Doppeltipp-Zoom nicht abgeschaltet');
+    // 7-Tage-Plan
+    await P(() => document.querySelectorAll('.week .item').length === 7 && /Heute/i.test(document.querySelector('.week .item').innerText) && /Morgen/i.test(document.querySelectorAll('.week .item')[1].innerText), 'Plan zeigt nicht die nächsten 7 Tage');
+    // Zonenmodell umschalten
+    await page.click('#tabs button[data-tab="zonen"]'); await page.waitForTimeout(150);
+    const z2 = async () => page.$eval('.ztable .item:nth-child(2) .t1', el => parseInt(el.textContent, 10));
+    const zHrr = await z2();
+    await page.click('[data-zonemodel] button[data-val="lthr"]'); await page.waitForTimeout(200);
+    const zLt = await z2();
+    if (!(zHrr < zLt)) problems.push(`Interaktion: Zonenmodell ändert Z2 nicht sinnvoll (HFR ${zHrr}, Friel ${zLt})`);
+    await page.click('[data-zonemodel] button[data-val="hrr"]'); await page.waitForTimeout(150);
+    if (process.env.SHOTS) await page.screenshot({ path: path.join(process.env.SHOTS, 'zonen.png'), fullPage: true });
+    // Laufschuhe anlegen und zuordnen
+    await page.click('#tabs button[data-tab="laeufe"]'); await page.waitForTimeout(100);
+    await page.click('[data-filter] button[data-val="all"]'); await page.waitForTimeout(100);
+    await page.click('.shoe-panel [data-action="shoes"]'); await page.waitForTimeout(150);
+    await page.fill('#sh-name', 'Pegasus'); await page.fill('#sh-start', '312,5'); await page.fill('#sh-limit', '650');
+    await page.click('[data-action="shoesave"]'); await page.waitForTimeout(150);
+    await page.fill('#sh-name', 'Vaporfly'); await page.click('[data-action="shoesave"]'); await page.waitForTimeout(150);
+    await page.keyboard.press('Escape'); await page.waitForTimeout(100);
+    await page.click('#tabs button[data-tab="heute"]'); await page.waitForTimeout(150);
+    await P(() => !!document.querySelector('.shoe-ask [data-shoefor] button'), 'Heute fragt nicht nach den Schuhen');
+    if (process.env.SHOTS) await page.screenshot({ path: path.join(process.env.SHOTS, 'heute-schuhe.png'), fullPage: false });
+    await page.click('.shoe-ask [data-shoefor] button'); await page.waitForTimeout(200);
+    await page.click('#tabs button[data-tab="laeufe"]'); await page.waitForTimeout(150);
+    await P(() => { const t = document.querySelector('.shoe-panel').innerText; return /Pegasus/.test(t) && !/312,5 \//.test(t) && /\/ 650 km/.test(t); }, 'Schuh-Kilometer werden nicht hochgezählt');
+    if (process.env.SHOTS) await page.screenshot({ path: path.join(process.env.SHOTS, 'training-schuhe.png'), fullPage: false });
+    const stored = await page.evaluate(() => new Promise(res => { const r = indexedDB.open('laufbuch'); r.onsuccess = () => { const g = r.result.transaction('meta').objectStore('meta').get('shoes'); g.onsuccess = () => res(g.result); }; }));
+    if (!stored || stored.length !== 2 || stored[0].startKm !== 312.5) problems.push('Interaktion: Schuhe falsch gespeichert: ' + JSON.stringify(stored));
+    // Puls aus Health für eine eingetragene Krafteinheit
+    const t0 = Date.now() - 3 * 3600e3, lines = ['LB1'];
+    for (let t = t0 - 300e3; t <= t0 + 3000e3; t += 60e3) lines.push(`H;${new Date(t).toISOString()};${115 + Math.round(Math.sin(t / 3e5) * 12)};Connect`);
+    await page.evaluate(() => { const b = document.querySelector('[data-action="wellness"]'); if (b) b.click(); });
+    await page.click('#tabs button[data-tab="heute"]').catch(() => {});
+    await page.evaluate(() => document.querySelector('[data-action="wellness"]').click()); await page.waitForTimeout(150);
+    await page.fill('#wtext', lines.join('\n')); await page.click('[data-action="wapply"]'); await page.waitForTimeout(250);
+    await page.click('#tabs button[data-tab="laeufe"]'); await page.click('[data-filter] button[data-val="strength"]'); await page.waitForTimeout(100);
+    await page.click('[data-action="addstrength"]'); await page.waitForTimeout(150);
+    const d0 = new Date(t0), pad = n => String(n).padStart(2, '0');
+    await page.fill('#k-date', `${d0.getFullYear()}-${pad(d0.getMonth() + 1)}-${pad(d0.getDate())}`); await page.fill('#k-time', `${pad(d0.getHours())}:${pad(d0.getMinutes())}`);
+    await page.fill('#exlist .s-reps', '8'); await page.fill('#exlist .s-kg', '80');
+    await page.click('[data-action="savestrength"]'); await page.waitForTimeout(300);
+    const wantId = 'm' + new Date(d0.getFullYear(), d0.getMonth(), d0.getDate(), d0.getHours(), d0.getMinutes()).getTime();
+    const man = await page.evaluate(id => document.querySelector(`[data-act="${id}"]`) ? id : null, wantId);
+    if (!man) problems.push('Interaktion: eingetragene Krafteinheit fehlt');
+    else {
+      await page.evaluate(id => document.querySelector(`[data-act="${id}"]`).click(), man); await page.waitForTimeout(400);
+      await P(() => /Puls aus Apple Health/.test(document.querySelector('#sheet').innerText) && !!document.querySelector('#sheet [data-chart]'), 'Puls aus Health wird der Krafteinheit nicht zugeordnet');
+      if (process.env.SHOTS) await page.screenshot({ path: path.join(process.env.SHOTS, 'kraft-health.png'), fullPage: false });
+      await page.keyboard.press('Escape');
+    }
     await ctx.close();
   }
 

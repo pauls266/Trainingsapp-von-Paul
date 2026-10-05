@@ -4,7 +4,7 @@
    einer alten Version hängen. Trainingsdaten werden hier NICHT gespeichert –
    die liegen weiterhin nur in der Datenbank im Browser.
    Die Versionsnummer muss zu APP_VERSION in core.js passen (wird getestet). */
-const VERSION = '2.2.1';
+const VERSION = '2.3.0';
 const CACHE = 'laufbuch-' + VERSION;
 const FILES = ['./', './index.html', './style.css', './core.js', './exercises.js', './charts.js', './map.js', './app.js', './vendor/jszip-3.10.1.min.js',
   './vendor/leaflet-1.9.4/leaflet.js', './vendor/leaflet-1.9.4/leaflet.css',
