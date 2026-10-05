@@ -2,6 +2,18 @@
 
 Alle Änderungen am Laufbuch in verständlicher Sprache. Die aktuelle Version steht in der App unten in den Einstellungen.
 
+## 2.3.0
+
+### Neu
+- **Laufschuhe:** Schuhe mit bisher gelaufenen Kilometern und Ersatz-Grenze anlegen. Nach jedem Lauf fragt „Heute“, welches Paar du anhattest; nach einem Import öffnet sich die Zuordnung. Kilometer, Anzahl Läufe und „bald ersetzen“ im Tab „Training“.
+- **Plan für die nächsten 7 Tage:** immer ab heute, auch am Sonntag. Die Tage der nächsten Woche sind eine Vorschau, die sich deinem Training anpasst. Auf „Heute“ steht zusätzlich, was morgen ansteht.
+- **Krafttraining mit Puls:** Eingetragene Krafteinheiten werden automatisch mit der Uhr-Aufzeichnung zusammengeführt (egal, was zuerst da ist). Ohne Uhr-Aufzeichnung ordnet die App Pulswerte aus Apple Health zu – dafür liefert der Kurzbefehl optional Zeilen `H;…`. Neuer Verlauf „Puls und Belastung pro Einheit“.
+- **Zonenmodell wählbar:** Herzfrequenzreserve (neuer Standard), Laktatschwelle nach Friel oder % der HFmax, mit Vergleichstabelle im Tab „Zonen“.
+
+### Verbessert
+- **Karte:** zuverlässigeres Laden auf dem iPhone (Stile werden abgewartet, Zeichnen erst nach dem Einblenden, Zeichenfläche statt Vektorgrafik). Antippen öffnet die Karte im Vollbild zum Zoomen. Klarer Hinweis, wenn ein Lauf noch ohne GPS gespeichert ist.
+- Ausführliche Schritt-für-Schritt-Anleitung für den Kurzbefehl unter „Tageswerte“.
+
 ## 2.2.1
 
 - Neuer Knopf **Tageswerte einfügen** auf „Heute“: holt die Werte des Kurzbefehls mit einem Tipp aus der Zwischenablage (iOS fragt einmal mit „Einfügen“ nach).

@@ -239,13 +239,14 @@ nav.tabs button svg{transition:transform .2s ease}
 .zoom .chart-full{display:none}
 
 /* Karte */
-.map{position:relative; height:250px; background:var(--surface); box-shadow:var(--shadow); overflow:hidden; z-index:0;
-  clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,0 100%)}
+.map{position:relative; height:250px; background:var(--surface); box-shadow:var(--shadow); overflow:hidden; z-index:0; isolation:isolate}
+.map.map-open{cursor:zoom-in}
+.map-hint{position:absolute; right:8px; top:8px; z-index:600; display:flex; align-items:center; gap:5px; padding:5px 8px; background:var(--ink); color:var(--bg); font-family:var(--cond); font-weight:600; font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; pointer-events:none}
+.map-hint svg{width:13px; height:13px}
 .map.map-full{height:calc(100vh - 120px); height:calc(100dvh - 120px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)); clip-path:none}
 .map.no-tiles, .map.no-tiles.leaflet-container{background-color:var(--surface); background-image:linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size:28px 28px; background-position:-1px -1px}
 .map .leaflet-container, .map.leaflet-container{font:inherit}
 .map-msg{position:absolute; inset:0; display:grid; place-items:center}
-.map .map-open{z-index:500; top:6px; right:6px; background:var(--surface); opacity:.9; width:34px; height:34px}
 .leaflet-control-attribution{font-size:10px}
 
 /* Trainingszustand */
@@ -316,3 +317,29 @@ nav.tabs button svg{transition:transform .2s ease}
 .plan-legend{margin-top:10px}
 
 .wbtns{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:12px 0 0}
+.map.map-open:focus{outline:none}
+.map.map-open:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+
+/* Laufschuhe */
+.shoe-panel{margin-top:14px}
+.shoe{padding:8px 0}
+.shoe + .shoe{border-top:1px solid var(--line)}
+.shoe.retired{opacity:.6}
+.shoe-top{display:flex; justify-content:space-between; gap:10px; align-items:baseline}
+.shoe-top span{font-family:var(--cond); font-weight:700; font-size:19px; font-variant-numeric:tabular-nums; white-space:nowrap}
+.shoe-top small{font-size:13px; color:var(--muted); font-weight:600}
+.shoe-bar{display:block; position:relative; height:8px; background:var(--bg); margin:6px 0 4px}
+.shoe-bar b{position:absolute; left:0; top:0; bottom:0}
+.shoe-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
+.shoe-chips button{border:1px solid var(--line); background:var(--surface); padding:8px 12px; font-family:var(--cond); font-weight:600; font-size:15px; letter-spacing:.04em; min-height:40px; position:relative; overflow:hidden}
+.shoe-chips button[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.shoe-ask{margin-top:14px; border-left:3px solid var(--z3)}
+.item.done{opacity:.55}
+
+/* Plan: nächste 7 Tage */
+.week .wd{display:flex; flex-direction:column; line-height:1}
+.week .wd small{font-family:var(--cond); font-size:13px; color:var(--muted); font-weight:600; margin-top:3px}
+.dlabel{font-family:var(--cond); font-weight:600; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:2px}
+.tomorrow{display:flex; align-items:center; gap:12px; width:100%; margin-top:8px; padding:11px 14px; border:0; background:var(--surface); box-shadow:var(--shadow); text-align:left; font-size:14.5px; position:relative; overflow:hidden}
+.tomorrow > span:nth-child(2){flex:1; min-width:0; font-weight:600}
+.tomorrow .lbl{flex:none}

@@ -18,7 +18,7 @@ und auf dem iPhone über „Zum Home-Bildschirm“ installiert.
 - Garmin bietet Privatpersonen **keine offizielle API** (Garmin Connect Developer Program nur für Unternehmen). Inoffizielle Garmin-Logins (z. B. python-garminconnect) wurden nicht gewählt. Nicht ohne ausdrückliche Zustimmung einführen.
 - Oberfläche komplett auf **Deutsch**, mobile-first fürs iPhone.
 
-## 2. Aktueller Stand (Version 2.2)
+## 2. Aktueller Stand (Version 2.3)
 
 ### Dateien
 `index.html` (Gerüst), `style.css`, `core.js` (alle Berechnungen, ohne DOM, auch in Node testbar), `exercises.js` (Übungsnamen aus dem FIT SDK, erzeugt mit `tools/gen-exercises.mjs`), `charts.js` (interaktive SVG-Diagramme), `map.js` (Karte mit Leaflet), `app.js` (Oberfläche), `sw.js` + `manifest.webmanifest` (Offline-Start), `vendor/` (JSZip 3.10.1, Leaflet 1.9.4 aus npm). Tests: `npm test` (node --test), Oberflächenprüfung: `npm run ui-check` (Playwright/Chromium). Versionsnummer in `core.js` (`APP_VERSION`) und `sw.js` (`VERSION`) immer gemeinsam erhöhen, `CHANGELOG.md` pflegen.
@@ -27,6 +27,13 @@ und auf dem iPhone über „Zum Home-Bildschirm“ installiert.
 - Aktivitäts-Schema `v: 2` (`SCHEMA` in core.js): GPS-Spur im 5-s-Stream (`stream.la/lo`, Grad × 1e5), `laps`, `sets` (Krafttraining, FIT-Nachricht 225), `kind` (run/strength/team/bike/swim/walk/other), Mehrsport-Sessions als eigene Aktivitäten. Beim erneuten Import werden ältere Datensätze ersetzt; manuell eingetragene (`src: 'manual'`) nie.
 - Eigene Angaben pro Aktivität (z. B. RPE) liegen getrennt im Store `meta` unter `annot` (`{id: {rpe}}`), damit ein Re-Import sie nicht überschreibt.
 - VO2max-Schätzung (`vo2maxRun`, Daniels + Swain), Trainingszustand (`trainingStatus`), Kraft-Auswertung (`strengthSummary`), Wochenplan mit `S.strengthPerWeek`, `S.teamDays` (0 = Mo), `S.teamSport`. Kartenhintergrund nur mit `S.mapTiles` (Standard aus, Datenschutz).
+
+### Neu in 2.3 (Kurzfassung)
+- Zonenmodell wählbar (`S.zoneModel`: `hrr` Standard, `lthr` Friel, `max`); `estimateParams` liefert `P.bounds` (Untergrenzen Z2–Z5) – überall statt `hrBounds(P.lthr)` verwenden.
+- Laufschuhe im Store `meta` unter `shoes` (`[{id,name,startKm,limitKm,retired,since}]`), Zuordnung in `annot[id].shoe`; gefragt wird für Läufe ab `S.shoesSince`.
+- Plan: `nextSevenDays(plan, planNext)` – nächste Woche als Vorschau (`buildPlan({…, preview:true})`).
+- Kurzbefehl: optionale Zeilen `H;<Datum>;<Puls>;<Quelle>` (Herzfrequenz, 21 Tage in `wellness.hr`). Von Hand eingetragene Krafteinheiten bekommen daraus Puls (`attachHealthHR`) und werden mit Uhr-Aufzeichnungen zusammengeführt (`findStrengthPartner`).
+- Karte: Leaflet mit Canvas-Renderer, Vorschau ohne Gesten, Antippen = Vollbild.
 
 ### Stand Version 2 (Grundlage)
 

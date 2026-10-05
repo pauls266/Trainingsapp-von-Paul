@@ -34,11 +34,12 @@ const DB = {
 };
 
 /* ---------- Zustand ---------- */
-const state = { acts:[], S:{goal:'m', runsPerWeek:4, sleepTarget:'7.5', strengthPerWeek:2, teamDays:[0], teamSport:'Fußball', mapTiles:false}, tab:'heute', filter:'all', P:null, der:{}, vd:null, paces:null, series:[], plan:null, W:newWellness(), rec:null, annot:{}, vo2:null, status:null, str:null, rk:null };
+const state = { acts:[], S:{goal:'m', runsPerWeek:4, sleepTarget:'7.5', strengthPerWeek:2, teamDays:[0], teamSport:'Fußball', mapTiles:false}, tab:'heute', filter:'all', P:null, der:{}, vd:null, paces:null, series:[], plan:null, W:newWellness(), rec:null, annot:{}, shoes:[], vo2:null, status:null, str:null, rk:null };
 
 function recompute(){
   const {acts, S, annot} = state;
   for (const a of acts) normalizeAct(a);
+  attachHealthHR(acts, state.W);   // Puls aus Health für eingetragene Krafteinheiten
   acts.sort((a,b) => b.start - a.start);
   state.P = estimateParams(acts, S);
   state.rk = rpeFactor(acts, state.P, annot);
@@ -49,7 +50,11 @@ function recompute(){
   state.rec = recovery(state.W, state.series, S);
   state.vo2 = vo2Trend(acts, state.P);
   state.str = strengthSummary(acts);
-  state.plan = buildPlan({S, acts, der:state.der, P:state.P, paces:state.paces, series:state.series, vd:state.vd, rec:state.rec, W:state.W});
+  const pctx = {S, acts, der:state.der, P:state.P, paces:state.paces, series:state.series, vd:state.vd, rec:state.rec, W:state.W};
+  state.plan = buildPlan(pctx);
+  const nm = new Date(); nm.setHours(12, 0, 0, 0); nm.setDate(nm.getDate() + (7 - (nm.getDay() + 6) % 7));
+  state.planNext = buildPlan({...pctx, today: nm.getTime(), preview: true});
+  state.days = nextSevenDays(state.plan, state.planNext);
   state.status = trainingStatus({acts, der:state.der, series:state.series, S, W:state.W, vo2:state.vo2, rec:state.rec});
 }
 
@@ -109,7 +114,10 @@ function viewHeute(){
     <div class="row">${kmTxt}<div class="title">${esc(t.title)}</div></div>
     ${t.tempo ? `<div class="tempo">${esc(t.tempo)}</div>` : ''}
     <div class="detail">${esc(t.detail)}</div>${extra}</div>`;
+  const tm = (state.days || [])[1];
+  if (tm) h += `<button class="tomorrow" data-action="tab" data-tab="plan"><span class="lbl">Morgen</span><span><span class="tag" style="background:${({Q:'var(--z4)', L:'var(--ink)', E:'var(--z2)', R:'var(--line)', W:'var(--z5)', T:'var(--z3)', K:'var(--accent)'})[tm.type] || 'var(--line)'}"></span>${esc(tm.title)}${tm.km ? ' · ' + num(tm.km, tm.km % 1 ? 1 : 0) + ' km' : ''}${tm.extra && tm.extra.length ? ' + ' + esc(tm.extra[0].title) : ''}</span><span class="muted">›</span></button>`;
 
+  h += shoeAskCard();
   h += statusCard();
   h += recoveryPanel();
   const c = series[series.length-1] || {ctl:0, atl:0, tsb:0}, fs = formState();
@@ -211,17 +219,38 @@ function openWellness(){
     </ol>
     <p class="small muted">Der Export kann mehrere hundert MB groß sein. Wenn der Import abbricht, hilft ein Neustart des iPhones vor dem Import.</p></div>
 
-    <h3>3. Für jeden Tag: Kurzbefehl anlegen</h3>
-    <div class="guide"><ol>
-      <li>Kurzbefehle-App öffnen → <b>+</b> → Name: <b>Laufbuch Tageswerte</b>.</li>
-      <li>Aktion <b>Health-Samples suchen</b> hinzufügen. Typ: <b>Ruhepuls</b>. Filter: <b>Startdatum</b> ist in den letzten <b>14 Tagen</b>.</li>
-      <li>Aktion <b>Wiederholen mit jedem Objekt</b> hinzufügen. Darin eine Aktion <b>Text</b> mit diesem Inhalt:<br><span class="code">R;Startdatum;Wert;Quelle</span><br>Dabei „Startdatum“, „Wert“ und „Quelle“ jeweils als Variable einfügen: auf <b>Wiederholungsobjekt</b> tippen und die Eigenschaft auswählen. Die Semikolons tippst du normal.</li>
-      <li>Nochmal <b>Health-Samples suchen</b>, diesmal Typ <b>Schlafanalyse</b>, ebenfalls letzte <b>14 Tage</b>.</li>
-      <li>Wieder <b>Wiederholen mit jedem Objekt</b>, darin <b>Text</b>:<br><span class="code">S;Startdatum;Enddatum;Wert;Quelle</span></li>
-      <li>Aktion <b>Text</b> ans Ende: erste Zeile <span class="code">LB1</span>, darunter die Variable <b>Wiederholungsergebnisse</b> der ersten Schleife, in der nächsten Zeile die der zweiten Schleife.</li>
-      <li>Zum Schluss <b>In Zwischenablage kopieren</b>.</li>
-    </ol>
-    <p class="small muted">Tipp: Bei den Datumsvariablen als Format „ISO 8601“ mit Uhrzeit wählen. Das deutsche Standardformat wird aber auch erkannt. Beim ersten Start fragt iOS, ob der Kurzbefehl Health-Daten lesen darf – erlauben.</p></div>
+    <h3>3. Kurzbefehl „Laufbuch Tageswerte“ bauen</h3>
+    <div class="guide">
+      <p class="small"><b>Teil A – neuen Kurzbefehl anlegen</b></p><ol>
+      <li>App <b>Kurzbefehle</b> öffnen → unten Tab <b>Kurzbefehle</b> → oben rechts <b>+</b>.</li>
+      <li>Oben auf den Namen tippen → <b>Umbenennen</b> → <span class="code">Laufbuch Tageswerte</span> → Fertig.</li></ol>
+      <p class="small"><b>Teil B – Ruhepuls</b></p><ol>
+      <li>Unten ins Suchfeld <b>Aktion suchen</b> tippen, <span class="code">Health</span> eingeben, <b>Health-Samples suchen</b> antippen.</li>
+      <li>In der Aktion auf den blauen Typ tippen → <b>Ruheherzfrequenz</b> (Ruhepuls) wählen.</li>
+      <li><b>Filter hinzufügen</b> → so einstellen: <b>Startdatum</b> · <b>ist in den letzten</b> · <b>14</b> · <b>Tage</b>.</li>
+      <li>Wieder suchen: <span class="code">wiederholen</span> → <b>Mit jedem wiederholen</b>. Sie hängt sich unter die Health-Aktion.</li>
+      <li>Zwischen „Mit jedem wiederholen“ und „Ende Wiederholen“ die Aktion <b>Text</b> einfügen.</li>
+      <li>Ins Textfeld <span class="code">R;</span> tippen. Über der Tastatur auf <b>Wiederholungsobjekt</b> tippen. Den blauen Baustein antippen → <b>Startdatum</b> wählen, dort <b>Datumsformat: ISO 8601</b> und <b>Uhrzeit einschließen</b>.</li>
+      <li><span class="code">;</span> tippen → wieder <b>Wiederholungsobjekt</b> → Baustein antippen → <b>Wert</b>.</li>
+      <li><span class="code">;</span> tippen → <b>Wiederholungsobjekt</b> → <b>Quelle</b>. Fertig sieht die Zeile so aus: <span class="code">R;[Startdatum];[Wert];[Quelle]</span></li></ol>
+      <p class="small"><b>Teil C – Schlaf</b></p><ol>
+      <li>Unter „Ende Wiederholen“ noch einmal <b>Health-Samples suchen</b> → Typ <b>Schlafanalyse</b> → gleicher Filter (letzte 14 Tage).</li>
+      <li>Wieder <b>Mit jedem wiederholen</b>, darin <b>Text</b>: <span class="code">S;[Startdatum];[Enddatum];[Wert];[Quelle]</span> – Start- und Enddatum jeweils als ISO 8601 mit Uhrzeit.</li></ol>
+      <p class="small"><b>Teil D – Puls für Krafttraining (optional)</b></p><ol>
+      <li>Noch einmal <b>Health-Samples suchen</b> → Typ <b>Herzfrequenz</b> → Filter: Startdatum ist in den letzten <b>2</b> Tagen.</li>
+      <li><b>Mit jedem wiederholen</b>, darin <b>Text</b>: <span class="code">H;[Startdatum];[Wert];[Quelle]</span></li>
+      <li>Damit ordnet die App Krafteinheiten, die du hier einträgst, deinen Puls zu. Ohne Teil D funktioniert alles andere genauso.</li></ol>
+      <p class="small"><b>Teil E – alles zusammensetzen</b></p><ol>
+      <li>Ganz unten eine Aktion <b>Text</b> einfügen. Erste Zeile: <span class="code">LB1</span></li>
+      <li>Neue Zeile → über der Tastatur <b>Variable auswählen</b> → im Ablauf auf <b>Wiederholungsergebnisse</b> unter der <i>ersten</i> Schleife tippen.</li>
+      <li>Neue Zeile → genauso die Wiederholungsergebnisse der zweiten (und ggf. dritten) Schleife.</li>
+      <li>Darunter <b>In Zwischenablage kopieren</b> (nimmt automatisch den Text).</li>
+      <li>Optional: <b>Mitteilung anzeigen</b> mit „Tageswerte bereit – Laufbuch öffnen“.</li>
+      <li>Unten auf <b>▶</b> tippen. Beim ersten Mal fragt iOS nach Health-Zugriff → <b>Alle erlauben</b>.</li></ol>
+      <p class="small"><b>Teil F – testen</b></p><ol>
+      <li>Notizen-App öffnen und einfügen. Die erste Zeile muss <span class="code">LB1</span> sein, darunter Zeilen wie <span class="code">R;2026-10-05T07:12:00+02:00;49 S/min;Connect</span>.</li>
+      <li>Steht dort etwas anderes (z. B. nur „Wiederholungsergebnisse“), wurde im Teil E der falsche Baustein gewählt.</li></ol>
+      <p class="small muted">Die Namen der Aktionen können je nach iOS-Version leicht abweichen. Ob die Einheit „S/min“ oder „bpm“ dabeisteht, ist egal – die App liest nur die Zahl.</p></div>
 
     <h3>4. Automatisch jeden Morgen</h3>
     <div class="guide"><ol>
@@ -245,7 +274,7 @@ function openWellness(){
 }
 async function applyWellness(recs, silentIfEmpty){
   const r = ingestWellness(state.W, recs);
-  if (!r.rhr && !r.nights){ if (!silentIfEmpty) toast('Keine Ruhepuls- oder Schlafdaten erkannt. Prüfe den Kurzbefehl (erste Zeile LB1, Zeilen mit R; und S;).'); return r; }
+  if (!r.rhr && !r.nights && !r.hr){ if (!silentIfEmpty) toast('Keine Ruhepuls- oder Schlafdaten erkannt. Prüfe den Kurzbefehl (erste Zeile LB1, Zeilen mit R; und S;).'); return r; }
   await DB.setMeta('wellness', state.W);
   recompute(); render();
   return r;
@@ -275,6 +304,7 @@ function viewLaeufe(){
   let h = `<div class="seg filter" data-filter role="group" aria-label="Filter">${segs.map(([k,l]) => `<button type="button" data-val="${k}" aria-pressed="${f===k}">${l}</button>`).join('')}</div>`;
   if (f === 'strength') h += strengthView();
   else if (!state.acts.length) return h + emptyView();
+  if (f === 'all' || f === 'run') h += shoePanel();
   const list = state.acts.filter(a => f === 'all' || (f === 'other' ? a.kind !== 'run' && a.kind !== 'strength' : a.kind === f));
   if (f === 'strength' && list.length) h += `<h3>Alle Einheiten</h3>`;
   let cur = '';
@@ -304,6 +334,14 @@ function strengthView(){
     <p class="small muted" style="margin:10px 0 0">Für Läufer am wichtigsten (fett): Beine, Gesäß & Hüfte, Rumpf und Waden. Die Linie markiert etwa 6 Sätze pro Woche als sinnvolle Untergrenze.</p></div>`;
   h += `<h3>Verlauf · 8 Wochen</h3><div class="panel">${chart([{v:wk.map(w=>w.sets), c:'var(--accent)', bars:true, op:.85, name:'Sätze', fmt:x=>num(x)}, {v:wk.map(w=>w.sessions), c:'var(--ink)', hidden:true, name:'Einheiten', fmt:x=>num(x)}, {v:wk.map(w=>w.minutes), c:'var(--muted)', hidden:true, name:'Minuten', fmt:x=>num(x)}],
     {h:110, min:0, xs:wk.map(w=>w.start), fmtX:weekOf, label:'Sätze pro Woche', title:'Krafttraining: Sätze pro Woche'})}</div>`;
+  const sess = state.acts.filter(a => a.kind === 'strength').sort((a,b) => a.start - b.start).slice(-24);
+  if (sess.some(a => a.avgHR)){
+    h += `<h3>Puls und Belastung pro Einheit</h3><div class="panel"><div class="legend"><span><b style="background:var(--accent)"></b>Belastung</span><span><b style="background:var(--hr)"></b>Ø Puls</span></div>
+      ${chart([{v:sess.map(a => state.der[a.id] ? state.der[a.id].trimp : null), c:'var(--accent)', bars:true, op:.75, name:'Belastung', fmt:x=>num(x)}, {v:sess.map(a => a.avgHR || null), c:'var(--hr)', hidden:true, name:'Ø Puls', fmt:x=>num(x)+' bpm'}, {v:sess.map(a => a.maxHR || null), c:'var(--hr)', hidden:true, name:'max. Puls', fmt:x=>num(x)+' bpm'}],
+        {h:110, min:0, xs:sess.map(a => a.start), fmtX:dayOf, label:'Belastung pro Krafteinheit', title:'Krafttraining: Belastung pro Einheit'})}
+      ${chart([{v:sess.map(a => a.avgHR || null), c:'var(--hr)', w:2, dots:false, name:'Ø Puls', fmt:x=>num(x)+' bpm'}], {h:80, xs:sess.map(a => a.start), fmtX:dayOf, label:'Durchschnittspuls pro Krafteinheit', title:'Krafttraining: Ø Puls'})}
+      <p class="small muted" style="margin:8px 0 0">Puls von der Uhr oder – bei von Hand eingetragenen Einheiten – aus Apple Health. Belastung aus Puls bzw. deiner Anstrengungs-Angabe.</p></div>`;
+  }
   if (s.exercises.length){
     h += `<h3>Übungen</h3><div class="list">${s.exercises.slice(0, 40).map(e => { const last = e.hist[e.hist.length-1];
       return `<button class="item" data-ex="${esc(e.key)}"><div class="main"><div class="t1">${esc(e.label)}</div><div class="t2">${e.name ? esc(e.name)+' · ' : ''}${e.count}× · zuletzt ${fmtDate(e.last)}</div></div>
@@ -379,24 +417,108 @@ async function saveStrength(){
   const a = normalizeAct({id:'m' + start, src:'manual', v:SCHEMA, start, sport:10, subSport:20, isRun:false, kind:'strength', name:'Krafttraining',
     dist:0, timer:mins*60, avgHR:null, maxHR:null, avgSpd:0, ascent:null, kcal:null, te:null, ane:null, cad:null, gct:null, vo:null, hr30:null,
     bestD:{}, bestT:{}, watch:{}, sets, stream:{t:[],hr:[],v:[],c:[],d:[],a:[]}});
+  const watch = findStrengthPartner(a, state.acts);
+  if (watch){
+    // Uhr-Aufzeichnung mit Puls existiert schon: Übungen dort eintragen
+    watch.sets = sets; watch.setsSrc = 'manual'; watch.kind = 'strength'; watch.name = 'Krafttraining';
+    try { await DB.put(watch); } catch(e){}
+    if (rpe){ state.annot[watch.id] = {...(state.annot[watch.id] || {}), rpe}; await saveAnnot(); }
+    recompute(); closeSheet(); state.tab = 'laeufe'; state.filter = 'strength'; render();
+    return toast(`Mit der Uhr-Aufzeichnung von ${new Date(watch.start).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})} Uhr verknüpft: ${sets.length} Sätze`);
+  }
   if (state.acts.some(x => x.id === a.id)) a.id += '-' + Math.floor(Math.random()*1000);
   try { await DB.put(a); } catch(e){}
   state.acts.push(a);
-  if (rpe){ state.annot[a.id] = {...(state.annot[a.id] || {}), rpe}; try { await DB.setMeta('annot', state.annot); } catch(e){} }
+  if (rpe){ state.annot[a.id] = {...(state.annot[a.id] || {}), rpe}; await saveAnnot(); }
   recompute(); closeSheet(); state.tab = 'laeufe'; state.filter = 'strength'; render();
-  toast(`Krafttraining gespeichert: ${sets.length} Sätze`);
+  toast(`Krafttraining gespeichert: ${sets.length} Sätze${a.hrSrc === 'health' ? ' · Puls aus Health zugeordnet' : ''}`);
+}
+
+/* ---------- Laufschuhe ---------- */
+const activeShoes = () => state.shoes.filter(x => !x.retired);
+const openShoeRuns = () => state.shoes.length ? unassignedRuns(state.acts, state.annot, state.S.shoesSince) : [];
+async function saveShoes(){ try { await DB.setMeta('shoes', state.shoes); } catch(e){} }
+function shoeChips(a){
+  const cur = state.annot[a.id] && state.annot[a.id].shoe;
+  const list = state.shoes.filter(x => !x.retired || x.id === cur);
+  return `<div class="shoe-chips" data-shoefor="${esc(a.id)}">${list.map(x => `<button type="button" data-val="${esc(x.id)}" aria-pressed="${cur === x.id}">${esc(x.name)}</button>`).join('')}<button type="button" data-val="none" aria-pressed="${cur === 'none'}">Andere / keine</button></div>`;
+}
+function shoeBar(st){
+  const warn = st.pct >= 0.9;
+  return `<div class="shoe${st.retired ? ' retired' : ''}"><div class="shoe-top"><b>${esc(st.name)}</b><span>${num(st.km)} <small>/ ${num(st.limit)} km</small></span></div>
+    <i class="shoe-bar"><b style="width:${Math.min(100, st.pct*100)}%;background:${warn ? 'var(--hr)' : 'var(--z3)'}"></b></i>
+    <div class="small muted">${st.runs} ${st.runs === 1 ? "Lauf" : "Läufe"} erfasst${st.last ? ' · zuletzt ' + fmtDate(st.last) : ''}${st.retired ? ' · ausgemustert' : warn ? ' · bald ersetzen' : ''}</div></div>`;
+}
+function shoePanel(){
+  if (!state.shoes.length) return `<div class="panel shoe-panel"><b>Laufschuhe</b><p class="small muted" style="margin:6px 0 10px">Lege deine Schuhe mit ihren bisherigen Kilometern an. Danach fragt die App nach jedem Lauf, welches Paar du getragen hast, und zählt mit.</p><button class="btn ghost" data-action="shoes">Schuhe anlegen</button></div>`;
+  const st = shoeStats(state.shoes, state.acts, state.annot).filter(x => !x.retired), open = openShoeRuns();
+  return `<div class="panel shoe-panel"><div class="str-head" style="margin:0 0 8px"><b>Laufschuhe</b><button class="btn ghost" data-action="shoes">Verwalten</button></div>
+    ${st.map(shoeBar).join('') || '<p class="small muted">Alle Schuhe sind ausgemustert.</p>'}
+    ${open.length ? `<p class="wbtns"><button class="btn" data-action="shoeassign">${open.length} Lauf${open.length === 1 ? '' : 'e'} zuordnen</button></p>` : ''}</div>`;
+}
+function shoeAskCard(){
+  const open = openShoeRuns(); if (!open.length || !activeShoes().length) return '';
+  const a = open[0];
+  return `<div class="panel shoe-ask"><b>Welche Schuhe hattest du an?</b><div class="small muted">${esc(a.name)} · ${fmtDate(a.start, true)} · ${fmtKm(a.dist)} km</div>${shoeChips(a)}
+    ${open.length > 1 ? `<button class="btn ghost" data-action="shoeassign" style="margin-top:10px">Alle ${open.length} offenen Läufe zuordnen</button>` : ''}</div>`;
+}
+function openShoeAssign(){
+  const open = openShoeRuns();
+  let h = `<div class="bar"><h2>Schuhe zuordnen</h2><button class="icon-btn" data-action="close" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="wrap">`;
+  if (!open.length) h += `<p class="muted">Alle Läufe sind zugeordnet.</p>`;
+  else {
+    h += `<p class="small muted" style="margin-top:0">Tippe bei jedem Lauf auf das Paar, das du getragen hast. Oder ordne alle offenen Läufe auf einmal zu:</p>
+      <p class="wbtns">${activeShoes().map(x => `<button class="btn ghost" data-action="shoeall" data-id="${esc(x.id)}">Alle → ${esc(x.name)}</button>`).join('')}</p>
+      <div class="list">${open.slice(0, 60).map(a => `<div class="item"><div class="main"><div class="t1">${esc(a.name)} · ${fmtKm(a.dist)} km</div><div class="t2">${fmtDate(a.start, true)}</div>${shoeChips(a)}</div></div>`).join('')}</div>`;
+  }
+  h += `</div>`;
+  openSheet(h);
+}
+function openShoes(editId){
+  const st = shoeStats(state.shoes, state.acts, state.annot), ed = state.shoes.find(x => x.id === editId);
+  let h = `<div class="bar"><h2>Laufschuhe</h2><button class="icon-btn" data-action="close" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="wrap form">`;
+  if (st.length) h += `<div class="list" style="margin-top:4px">${st.map(x => `<div class="item"><div class="main">${shoeBar(x)}
+      <p class="wbtns" style="margin-top:8px"><button class="btn ghost" data-action="shoeedit" data-id="${esc(x.id)}">Bearbeiten</button><button class="btn ghost" data-action="shoeretire" data-id="${esc(x.id)}">${x.retired ? 'Wieder aktivieren' : 'Ausmustern'}</button><button class="btn danger" data-action="shoedel" data-id="${esc(x.id)}">Löschen</button></p></div></div>`).join('')}</div>`;
+  h += `<h2>${ed ? 'Schuh bearbeiten' : 'Neuer Schuh'}</h2>
+    <div class="field"><label for="sh-name">Name</label><input id="sh-name" type="text" autocomplete="off" placeholder="z. B. Pegasus 41 (blau)" value="${esc(ed ? ed.name : '')}"></div>
+    <div class="two">
+      <div class="field"><label for="sh-start">Bisher gelaufen</label><div class="unit"><input id="sh-start" type="text" inputmode="decimal" placeholder="0" value="${ed ? esc(String(ed.startKm || 0).replace('.', ',')) : ''}"><span>km</span></div></div>
+      <div class="field"><label for="sh-limit">Ersetzen ab</label><div class="unit"><input id="sh-limit" type="text" inputmode="numeric" placeholder="700" value="${ed ? esc(ed.limitKm || '') : ''}"><span>km</span></div></div>
+    </div>
+    <div class="hint">„Bisher gelaufen“ sind die Kilometer, die der Schuh schon hat, bevor die App mitzählt. Viele Laufschuhe halten 500–800 km.</div>
+    <div class="savebar"><button class="btn" data-action="shoesave" data-id="${esc(ed ? ed.id : '')}">${ed ? 'Änderungen speichern' : 'Schuh hinzufügen'}</button>${ed ? '<button class="btn ghost" data-action="shoes">Abbrechen</button>' : ''}</div></div>`;
+  openSheet(h);
+}
+async function saveShoe(id){
+  const name = ($('#sh-name').value || '').trim(), startKm = parseNum($('#sh-start').value), lim = parseInt($('#sh-limit').value, 10);
+  if (!name) return toast('Bitte einen Namen eingeben.');
+  const sk = isFinite(startKm) && startKm >= 0 && startKm < 10000 ? Math.round(startKm*10)/10 : 0, lk = lim >= 100 && lim <= 3000 ? lim : 700;
+  if (id){ const x = state.shoes.find(y => y.id === id); if (x){ x.name = name; x.startKm = sk; x.limitKm = lk; } }
+  else {
+    state.shoes.push({id: 'sh' + Date.now().toString(36), name, startKm: sk, limitKm: lk, retired: false, since: Date.now()});
+    if (!state.S.shoesSince){
+      // ab jetzt (und für die Läufe der letzten 7 Tage) wird gefragt
+      state.S.shoesSince = Date.now() - 7*864e5; try { await DB.setMeta('settings', JSON.parse(JSON.stringify(state.S))); } catch(e){}
+    }
+  }
+  await saveShoes(); render(); openShoes(); toast(id ? 'Gespeichert' : `„${name}“ hinzugefügt`);
 }
 
 function viewPlan(){
-  const p = state.plan;
+  const p = state.plan, days = state.days || [];
   const TC = {Q:'var(--z4)', L:'var(--ink)', E:'var(--z2)', R:'var(--line)', W:'var(--z5)', T:'var(--z3)', K:'var(--accent)'};
-  const total = p.sessions.reduce((s,x) => s + x.km, 0);
-  let h = `<h2 style="margin-top:8px">Diese Woche: ${esc(p.phase)}${p.recovery ? ' (Entlastung)' : ''}</h2>
-    <p class="muted small">${p.wtr !== null ? (p.wtr === 0 ? 'Wettkampfwoche. ' : `Noch ${p.wtr} Woche${p.wtr===1?'':'n'} bis zum ${p.goal==='m'?'Marathon':'Halbmarathon'}. `) : 'Kein Wettkampfdatum eingetragen – der Plan baut Grundlage auf. '}Rund ${num(total)} km geplant, Schnitt der letzten 4 Wochen ${num(p.vol4)} km.</p>
+  const total = days.reduce((s,x) => s + x.km, 0);
+  const label = d => d.offset === 0 ? 'Heute' : d.offset === 1 ? 'Morgen' : new Date(d.ts).toLocaleDateString('de-DE', {weekday:'long'});
+  let h = `<h2 style="margin-top:8px">Die nächsten 7 Tage</h2>
+    <p class="muted small">Phase: <b style="color:var(--ink)">${esc(p.phase)}${p.recovery ? ' (Entlastung)' : ''}</b>. ${p.wtr !== null ? (p.wtr === 0 ? 'Wettkampfwoche. ' : `Noch ${p.wtr} Woche${p.wtr===1?'':'n'} bis zum ${p.goal==='m'?'Marathon':'Halbmarathon'}. `) : 'Kein Wettkampfdatum eingetragen – der Plan baut Grundlage auf. '}Rund ${num(total)} km in den nächsten 7 Tagen, Schnitt der letzten 4 Wochen ${num(p.vol4)} km pro Woche.</p>
     <div class="list week">`;
-  for (const s of p.sessions){
+  let prevPreview = false;
+  for (const s of days){
+    if (s.preview && !prevPreview) h += `</div><div class="month">Ab Montag · nächste Woche${s.phase !== p.phase ? ' · ' + esc(s.phase) : ''}${s.recovery && !p.recovery ? ' (Entlastung)' : ''} <span class="muted" style="text-transform:none;letter-spacing:0">– Vorschau, passt sich deinem Training an</span></div><div class="list week">`;
+    prevPreview = s.preview;
     const ex = (s.extra || []).map(x => `<div class="t2 extra"><span class="tag" style="background:${TC[x.type]}"></span><b>+ ${esc(x.title)}</b> – ${esc(x.detail)}</div>`).join('');
-    h += `<div class="item${s.day === p.tIdx ? ' today' : ''}${s.optional ? ' optional' : ''}"><div class="wd">${WD[s.day]}</div><div class="main">
+    h += `<div class="item${s.offset === 0 ? ' today' : ''}${s.optional ? ' optional' : ''}"><div class="wd">${WD[s.day]}<small>${new Date(s.ts).getDate()}.</small></div><div class="main">
+      <div class="dlabel">${label(s)}</div>
       <div class="t1"><span class="tag" style="background:${TC[s.type]||'var(--line)'}"></span>${esc(s.title)}${s.km ? ` · ${num(s.km, s.km % 1 ? 1 : 0)} km` : ''}${s.optional ? ' <span class="small muted">· optional</span>' : ''}</div>
       ${s.tempo ? `<div class="t2" style="color:var(--ink);font-weight:500">${esc(s.tempo)}</div>` : ''}
       <div class="t2">${esc(s.detail)}</div>${ex}</div></div>`;
@@ -409,12 +531,19 @@ function viewPlan(){
 }
 
 function viewZonen(){
-  const {P, paces, vd, S} = state, b = hrBounds(P.lthr);
+  const {P, paces, vd, S} = state, b = P.bounds, M = ZONE_MODELS[P.zoneModel];
   const ranges = [`unter ${b[0]}`, `${b[0]}–${b[1]-1}`, `${b[1]}–${b[2]-1}`, `${b[2]}–${b[3]-1}`, `ab ${b[3]}`];
-  const use = ['Aktive Erholung, Einlaufen','Lockere und lange Läufe – das Fundament für HM und Marathon','Marathontempo liegt oft hier; im Alltagstraining eher meiden','Schwellentraining, Halbmarathontempo','Intervalle, kurze harte Belastungen'];
+  const use = ['Aktive Erholung, Einlaufen, sehr lockere Läufe','Lockere und lange Läufe – das Fundament für HM und Marathon','Zügiger Dauerlauf, Marathontempo liegt oft hier','Schwellentraining, Halbmarathontempo','Intervalle, kurze harte Belastungen'];
   let h = `<h2 style="margin-top:8px">Herzfrequenzzonen</h2>
-    <p class="small muted">Berechnet aus deiner Laktatschwelle von <b style="color:var(--ink)">${P.lthr} bpm</b> (${esc(P.src.lthr)}). HFmax ${P.maxHR} bpm, Ruhepuls ${P.restHR} bpm.</p>
+    <div class="seg" data-zonemodel role="group" aria-label="Zonenmodell">${Object.entries(ZONE_MODELS).map(([k, m]) => `<button type="button" data-val="${k}" aria-pressed="${P.zoneModel === k}">${m.short}</button>`).join('')}</div>
+    <p class="small muted" style="margin-top:8px">${esc(M.info)}</p>
+    <p class="small muted">Deine Werte: HFmax <b style="color:var(--ink)">${P.maxHR}</b> (${esc(P.src.maxHR)}), Ruhepuls <b style="color:var(--ink)">${P.restHR}</b> (${esc(P.src.restHR)}), Laktatschwelle <b style="color:var(--ink)">${P.lthr}</b> (${esc(P.src.lthr)}).</p>
     <div class="list ztable">${ranges.map((r,i) => `<div class="item"><div class="zchip" style="background:${ZC[i]}">Z${i+1}</div><div class="main"><div class="t1">${r} bpm · ${ZN[i]}</div><div class="t2">${use[i]}</div></div></div>`).join('')}</div>`;
+  // Vergleich der Modelle
+  const all = Object.keys(ZONE_MODELS).map(k => [k, zoneBounds(P, k)]);
+  h += `<h3>Vergleich der Modelle (Beginn der Zone in bpm)</h3><div class="panel laps"><div class="scroll-x"><table><thead><tr><th>Modell</th><th>Z2</th><th>Z3</th><th>Z4</th><th>Z5</th></tr></thead><tbody>
+    ${all.map(([k, bb]) => `<tr class="${k === P.zoneModel ? 'work' : ''}"><td>${ZONE_MODELS[k].short}</td>${bb.map(x => `<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>
+    <p class="small muted">Alle Modelle sind übliche Näherungen. Entscheidend ist, dass lockere Läufe wirklich locker sind: Du solltest dich dabei problemlos unterhalten können. Passt das Gefühl nicht zu den Zonen, lohnt ein Blick auf HFmax und Ruhepuls in den Einstellungen.</p>`;
   if (P.src.lthr.indexOf('Schätzung') >= 0) h += `<p class="small" style="margin-top:8px">Tipp: Für genauere Zonen trage deine Laktatschwelle ein. Die Forerunner 265 zeigt sie unter Leistungswerte an, sofern sie erfasst wurde (meist mit Brustgurt). Alternativ: 30 min allein so schnell wie möglich laufen – der Durchschnittspuls der letzten 20 Minuten ist ein guter Wert.</p>`;
   h += `<button class="btn ghost" data-action="settings" style="margin-top:6px">Werte anpassen</button>`;
   h += `<h2>Tempobereiche</h2>`;
@@ -563,7 +692,7 @@ function setsHTML(a){
 }
 function openAct(id){
   const a = state.acts.find(x => x.id === id); if (!a) return;
-  const d = state.der[id], st = a.stream, b = hrBounds(state.P.lthr), n = st.t.length;
+  const d = state.der[id], st = a.stream, b = state.P.bounds, n = st.t.length;
   const sm = i => { let s=0,c=0; for (let k=Math.max(0,i-6); k<=Math.min(n-1,i+6); k++){ if (st.v[k] > 0){ s+=st.v[k]; c++; } } return c ? s/c : 0; };
   const hr = st.hr.map(x => x > 0 ? x : null);
   const spd = st.v.map((_, i) => sm(i));
@@ -595,7 +724,11 @@ function openAct(id){
   let h = `<div class="bar"><h2>${esc(a.name)}</h2><button class="icon-btn" data-action="close" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="wrap">
     <p class="muted" style="margin-top:0">${fmtDate(a.start,true)}, ${new Date(a.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} Uhr${a.profile && a.profile !== a.name ? ' · ' + esc(a.profile) : ''}${a.multiOf ? ' · Teil ' + (a.multi + 1) + ' von ' + a.multiOf : ''}</p>
     <div class="stats">${tiles.map(t => `<div><div class="v">${t[0]}</div><div class="l">${t[1]}</div></div>`).join('')}</div>`;
-  if (st.la && st.la.some(x => x != null)) h += `<h3>Strecke</h3>${RouteMap.html(a)}<p class="small muted" style="margin:6px 0 0">Farbe = Herzfrequenzzone. Wische in einem Diagramm, um die Stelle auf der Karte zu sehen.${state.S.mapTiles ? '' : ' Kartenhintergrund in den Einstellungen einschaltbar.'}</p>`;
+  if (st.la && st.la.some(x => x != null)) h += `<h3>Strecke</h3>${RouteMap.html(a)}<p class="small muted" style="margin:6px 0 0">Farbe = Herzfrequenzzone. Antippen öffnet die Karte zum Zoomen. Wische in einem Diagramm, um die Stelle auf der Karte zu sehen.${state.S.mapTiles ? '' : ' Straßen und Wege zeigt die Karte, wenn du in den Einstellungen den Kartenhintergrund einschaltest.'}</p>`;
+  else if (a.isRun && a.src !== 'manual' && (a.v == null || a.v < SCHEMA)) h += `<p class="small interval" style="margin-top:14px"><b>Keine Karte gespeichert:</b> Dieser Lauf wurde mit einer älteren Version importiert. Importiere die FIT-Datei noch einmal – dann erscheinen Karte und Runden, deine Angaben bleiben erhalten.</p>`;
+  else if (a.isRun && a.subSport !== 1 && a.subSport !== 45) h += `<p class="small muted" style="margin-top:14px">Für diesen Lauf sind keine GPS-Daten in der Datei.</p>`;
+  if (hasHR && a.hrSrc === 'health') h += `<p class="small muted" style="margin:14px 0 -6px">Puls aus Apple Health zugeordnet (Einzelwerte, zwischen den Messpunkten verbunden).</p>`;
+  if (a.setsSrc === 'manual') h += `<p class="small muted" style="margin:14px 0 -6px">Übungen von dir eingetragen, Puls und Zeit von der Uhr.</p>`;
   if (hasHR) h += `<h3>Herzfrequenz</h3><div class="panel">${chart([{v:hr, c:'var(--hr)', w:1.6, name:'HF', fmt:x=>Math.round(x)+' bpm'}], {h:130, group:grp, xs, fmtX, min: Math.max(60, Math.min(...hr.filter(x=>x)) - 5), max: Math.max(...hr.filter(x=>x)) + 3, bands: [0,1,2,3,4].map(i => ({from: i ? b[i-1] : 0, to: i < 4 ? b[i] : 250, c: ZC[i]})), label:'Herzfrequenzverlauf', title:'Herzfrequenz'})}</div>`;
   if (a.isRun && pv.length > 10) h += `<h3>Pace</h3><div class="panel">${chart([{v:pace, c:'var(--pace)', w:1.6, name:'Pace', fmt:x=>fmtPace(x)+'/km', area:true, areaBase: pv[Math.floor(pv.length*0.98)] + 15}], {h:120, group:grp, xs, fmtX, invert:true, min: pv[Math.floor(pv.length*0.02)] - 10, max: pv[Math.floor(pv.length*0.98)] + 15, label:'Paceverlauf', title:'Pace (schneller oben)'})}</div>`;
   else if (!a.isRun && moving && !isStr) h += `<h3>Geschwindigkeit</h3><div class="panel">${chart([{v:spd.map(v => v > 0 ? Math.round(v*36)/10 : null), c:'var(--pace)', w:1.6, name:'Tempo', fmt:x=>num(x,1)+' km/h', area:true}], {h:110, group:grp, xs, fmtX, min:0, label:'Geschwindigkeit', title:'Geschwindigkeit'})}</div>`;
@@ -603,6 +736,7 @@ function openAct(id){
   if (cad.some(x => x)) h += `<h3>Schrittfrequenz</h3><div class="panel">${chart([{v:cad, c:'var(--z3)', w:1.2, name:'Schritte', fmt:x=>Math.round(x)+' /min'}], {h:80, group:grp, xs, fmtX, label:'Schrittfrequenz', title:'Schrittfrequenz'})}</div>`;
   const zt = d.zs.reduce((x,y)=>x+y,0);
   if (zt) h += `<h3>Zeit in Zonen</h3><div class="panel">${d.zs.map((v,i) => `<div class="hbar zone"><span>Z${i+1}</span><i><b style="width:${v/zt*100}%;background:${ZC[i]}"></b></i><em>${fmtDur(v)}</em></div>`).join('')}</div>`;
+  if (a.kind === 'run') h += `<h3>Laufschuhe</h3><div class="panel">${state.shoes.length ? shoeChips(a) : '<p class="small muted" style="margin:0 0 8px">Noch keine Schuhe angelegt.</p><button class="btn ghost" data-action="shoes">Schuhe anlegen</button>'}</div>`;
   h += lapsHTML(a);
   h += setsHTML(a);
   // Anstrengung
@@ -631,7 +765,7 @@ function openAct(id){
 /* ---------- Einstellungen ---------- */
 function openSettings(){
   const S = state.S, P = state.P;
-  const cur = name => name === 'mapTiles' ? (S.mapTiles ? '1' : '0') : String(S[name] != null ? S[name] : '');
+  const cur = name => name === 'mapTiles' ? (S.mapTiles ? '1' : '0') : name === 'zoneModel' ? P.zoneModel : String(S[name] != null ? S[name] : '');
   const seg = (name, opts, label) => `<div class="seg" data-seg="${name}" role="group" aria-label="${label}">${opts.map(o => `<button type="button" data-val="${o[0]}" aria-pressed="${cur(name) === String(o[0])}">${o[1]}</button>`).join('')}</div>`;
   // Zeit als drei Felder (Std/Min/Sek) mit Zifferntastatur – kein Doppelpunkt nötig
   const timeField = (id, sec, ph, hideZeroH) => {
@@ -656,7 +790,13 @@ function openSettings(){
     ${numField('teamSport', 'Was für ein Termin?', S.teamSport, 'Fußball', '', 'text')}
     <div class="hint">Zählt als harte Einheit: Am Folgetag plant die App keine Qualitätseinheit. Fällt der Termin aus, schlägt „Heute“ am nächsten Tag einen lockeren Lauf vor.</div>
 
+    <h2>Laufschuhe</h2>
+    <p class="small muted">${state.shoes.filter(x => !x.retired).length ? state.shoes.filter(x => !x.retired).map(x => esc(x.name)).join(', ') : 'Noch keine Schuhe angelegt.'}</p>
+    <button type="button" class="btn ghost" data-action="shoes">Laufschuhe verwalten</button>
+
     <h2>Körperwerte</h2>
+    <div class="field"><label>Zonenmodell</label>${seg('zoneModel', Object.entries(ZONE_MODELS).map(([k, m]) => [k, m.short]), 'Zonenmodell')}</div>
+    <div class="hint">Standard ist die Herzfrequenzreserve. Erklärung und Vergleich im Tab „Zonen“.</div>
     <p class="small muted">Leer lassen = automatisch aus deinen Daten geschätzt. Der Schätzwert steht grau im Feld.</p>
     <div class="two">
       ${numField('maxHR', 'HFmax', S.maxHR, P.maxHR, 'bpm')}
@@ -711,7 +851,7 @@ async function saveSettings(){
 
 async function importFiles(files){
   const existing = new Map(state.acts.map(a => [a.id, a]));
-  let added = 0, dup = 0, other = 0, failed = 0, seen = 0, upgraded = 0;
+  let added = 0, dup = 0, other = 0, failed = 0, seen = 0, upgraded = 0, linked = 0, annotChanged = false;
   const hk = [];
   let hkSeen = false;
   toast('Lese Dateien …', true);
@@ -753,6 +893,13 @@ async function importFiles(files){
         else dup++;
         continue;
       }
+      // gleiche Krafteinheit schon von Hand eingetragen? Dann Übungen übernehmen und zu einer Einheit zusammenführen
+      const man = (a.kind === 'strength' || a.sport === 10 || a.sport === 4) ? findStrengthPartner(a, state.acts) : null;
+      if (man){
+        if (!a.sets || !a.sets.length){ a.sets = man.sets; a.setsSrc = 'manual'; a.kind = 'strength'; a.name = 'Krafttraining'; }
+        if (state.annot[man.id]){ state.annot[a.id] = {...state.annot[man.id], ...(state.annot[a.id] || {})}; delete state.annot[man.id]; annotChanged = true; }
+        await DB.del(man.id); state.acts = state.acts.filter(x => x.id !== man.id); existing.delete(man.id); linked++;
+      }
       existing.set(a.id, a); await DB.put(a); state.acts.push(a); added++;
     }
   }
@@ -765,12 +912,15 @@ async function importFiles(files){
   recompute(); render();
   const parts = [];
   if (added || dup || upgraded || !hkSeen) parts.push(`${added} Aktivitäten neu importiert`);
-  if (hkSeen) parts.push(wr && (wr.rhr || wr.nights) ? `Tageswerte: ${wr.rhr} Ruhepuls-Werte, ${wr.nights} Nächte` : 'keine Ruhepuls- oder Schlafdaten im Export gefunden');
+  if (hkSeen) parts.push(wr && (wr.rhr || wr.nights || wr.hr) ? `Tageswerte: ${wr.rhr} Ruhepuls-Werte, ${wr.nights} Nächte${wr.hr ? ', ' + wr.hr + ' Pulswerte' : ''}` : 'keine Ruhepuls- oder Schlafdaten im Export gefunden');
+  if (annotChanged) await saveAnnot();
   if (upgraded) parts.push(`${upgraded} mit Karte, Runden und Sätzen ergänzt`);
+  if (linked) parts.push(`${linked} Krafteinheit${linked === 1 ? '' : 'en'} mit deinen Übungen verknüpft`);
   if (dup) parts.push(`${dup} schon vorhanden`);
   if (failed) parts.push(`${failed} nicht lesbar`);
   if (added === 0 && !dup && other && !hkSeen) parts.push('keine Aktivitäten gefunden');
   toast(parts.join(', '));
+  if (added && activeShoes().length && openShoeRuns().some(r => Date.now() - r.start < 14*864e5)) setTimeout(openShoeAssign, 400);
 }
 
 /* ---------- Grundgerüst ---------- */
@@ -787,7 +937,7 @@ function render(){
 function mountMaps(root){
   for (const el of root.querySelectorAll('[data-map]')){
     const a = state.acts.find(x => x.id === el.dataset.map); if (!a || el._map) continue; el._map = true;
-    RouteMap.mount(el, a, {tiles: !!state.S.mapTiles, bounds: hrBounds(state.P.lthr), full: el.classList.contains('map-full')});
+    RouteMap.mount(el, a, {tiles: !!state.S.mapTiles, bounds: state.P.bounds, full: el.classList.contains('map-full')});
   }
 }
 function openSheet(html){ const s = $('#sheet'); s.innerHTML = html; s.classList.add('open'); s.scrollTop = 0; document.body.style.overflow = 'hidden'; Charts.mount(s); mountMaps(s); }
@@ -815,6 +965,15 @@ document.addEventListener('click', async e => {
   if (tab){ state.tab = tab.dataset.tab; render(); window.scrollTo(0,0); return; }
   const act = e.target.closest('[data-act]'); if (act){ openAct(act.dataset.act); return; }
   const ex = e.target.closest('[data-ex]'); if (ex){ openExercise(ex.dataset.ex); return; }
+  const shb = e.target.closest('[data-shoefor] button');
+  if (shb){ const id = shb.parentNode.dataset.shoefor, v = shb.dataset.val;
+    state.annot[id] = {...(state.annot[id] || {}), shoe: v}; await saveAnnot();
+    shb.parentNode.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b === shb));
+    const item = shb.closest('#sheet .item'); if (item && $('#sheet h2') && /zuordnen/i.test($('#sheet h2').textContent)) item.classList.add('done');
+    if (!shb.closest('#sheet')) render();
+    const nm = v === 'none' ? 'keine Zuordnung' : (state.shoes.find(x => x.id === v) || {}).name; toast(`Schuh: ${nm}`); return; }
+  const zm = e.target.closest('[data-zonemodel] button');
+  if (zm){ state.S.zoneModel = zm.dataset.val; try { await DB.setMeta('settings', JSON.parse(JSON.stringify(state.S))); } catch(err){} recompute(); render(); toast('Zonenmodell: ' + ZONE_MODELS[zm.dataset.val].name); return; }
   const fb = e.target.closest('[data-filter] button'); if (fb){ state.filter = fb.dataset.val; state.showAll = false; render(); return; }
   const rp = e.target.closest('[data-rpe] button');
   if (rp){ const id = rp.parentNode.dataset.rpe, v = +rp.dataset.val, cur = state.annot[id] && state.annot[id].rpe;
@@ -831,7 +990,7 @@ document.addEventListener('click', async e => {
     if (box.hasAttribute('data-local')) return;
     if (name === 'runsPerWeek' || name === 'strengthPerWeek') v = +v; else if (name === 'mapTiles') v = v === '1';
     state.S[name] = v; return; }
-  if (e.target.closest('.map-open')){ const el = e.target.closest('[data-map]'), a = state.acts.find(x => x.id === el.dataset.map);
+  if (e.target.closest('.map-open')){ const el = e.target.closest('[data-map]'), a = el && state.acts.find(x => x.id === el.dataset.map);
     if (a) openZoom(`<div class="zoom-bar"><h2>${esc(a.name)} · Strecke</h2><button class="icon-btn" data-zoom-close aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="zoom-body">${RouteMap.html(a, true)}</div>`);
     return; }
   if (e.target.closest('[data-zoom-close]')){ closeZoom(); return; }
@@ -848,14 +1007,24 @@ document.addEventListener('click', async e => {
   else if (k === 'wellness') openWellness();
   else if (k === 'tab'){ state.tab = a.dataset.tab; render(); window.scrollTo(0,0); }
   else if (k === 'addstrength') openStrengthForm();
+  else if (k === 'shoes') openShoes();
+  else if (k === 'shoeassign') openShoeAssign();
+  else if (k === 'shoeedit') openShoes(a.dataset.id);
+  else if (k === 'shoesave') saveShoe(a.dataset.id);
+  else if (k === 'shoeretire'){ const x = state.shoes.find(y => y.id === a.dataset.id); if (x){ x.retired = !x.retired; await saveShoes(); render(); openShoes(); } }
+  else if (k === 'shoedel'){ const x = state.shoes.find(y => y.id === a.dataset.id); if (!x || !confirm(`„${x.name}“ löschen? Die Zuordnungen zu Läufen werden entfernt.`)) return;
+    state.shoes = state.shoes.filter(y => y.id !== x.id); for (const id in state.annot) if (state.annot[id].shoe === x.id) delete state.annot[id].shoe;
+    await saveShoes(); await saveAnnot(); render(); openShoes(); toast('Schuh gelöscht'); }
+  else if (k === 'shoeall'){ const open = openShoeRuns(); for (const r of open) state.annot[r.id] = {...(state.annot[r.id] || {}), shoe: a.dataset.id};
+    await saveAnnot(); render(); closeSheet(); toast(`${open.length} Läufe zugeordnet`); }
   else if (k === 'addex'){ const list = $('#exlist'), cats = [...list.querySelectorAll('.ex-cat')].map(x => +x.value), next = EX_PICK.find(c => !cats.includes(c)); list.insertAdjacentHTML('beforeend', exBlock(next != null ? next : EX_PICK[0])); }
   else if (k === 'savestrength') saveStrength();
-  else if (k === 'wapply'){ const t = $('#wtext').value; if (!t.trim()) return toast('Das Feld ist leer. Erst den Kurzbefehl ausführen, dann einfügen.'); const r = await applyWellness(parseShortcutText(t)); if (r.rhr || r.nights){ closeSheet(); toast(`Übernommen: ${r.rhr} Ruhepuls-Werte, ${r.nights} Nächte`); } }
+  else if (k === 'wapply'){ const t = $('#wtext').value; if (!t.trim()) return toast('Das Feld ist leer. Erst den Kurzbefehl ausführen, dann einfügen.'); const r = await applyWellness(parseShortcutText(t)); if (r.rhr || r.nights || r.hr){ closeSheet(); toast(`Übernommen: ${r.rhr} Ruhepuls-Werte, ${r.nights} Nächte${r.hr ? ', ' + r.hr + ' Pulswerte' : ''}`); } }
   else if (k === 'wpaste'){ try { const t = await navigator.clipboard.readText(); const recs = parseShortcutText(t || '');
       if (!recs.length){ toast('In der Zwischenablage sind keine Tageswerte. Erst den Kurzbefehl „Laufbuch Tageswerte“ ausführen.'); return; }
-      const r = await applyWellness(recs); if (r.rhr || r.nights) toast(`Übernommen: ${r.rhr} Ruhepuls-Werte, ${r.nights} Nächte`); }
+      const r = await applyWellness(recs); if (r.rhr || r.nights || r.hr) toast(`Übernommen: ${r.rhr} Ruhepuls-Werte, ${r.nights} Nächte${r.hr ? ', ' + r.hr + ' Pulswerte' : ''}`); }
     catch(err){ openWellness(); toast('Kein Zugriff auf die Zwischenablage. Tippe lange ins Feld und wähle „Einfügen“.'); } }
-  else if (k === 'wclip'){ try { const t = await navigator.clipboard.readText(); $('#wtext').value = t; if (t.trim()){ const r = await applyWellness(parseShortcutText(t)); if (r.rhr || r.nights){ closeSheet(); toast(`Übernommen: ${r.rhr} Ruhepuls-Werte, ${r.nights} Nächte`); } } else toast('Die Zwischenablage ist leer.'); } catch(err){ toast('Kein Zugriff auf die Zwischenablage. Tippe lange ins Feld und wähle „Einfügen“.'); } }
+  else if (k === 'wclip'){ try { const t = await navigator.clipboard.readText(); $('#wtext').value = t; if (t.trim()){ const r = await applyWellness(parseShortcutText(t)); if (r.rhr || r.nights || r.hr){ closeSheet(); toast(`Übernommen: ${r.rhr} Ruhepuls-Werte, ${r.nights} Nächte${r.hr ? ', ' + r.hr + ' Pulswerte' : ''}`); } } else toast('Die Zwischenablage ist leer.'); } catch(err){ toast('Kein Zugriff auf die Zwischenablage. Tippe lange ins Feld und wähle „Einfügen“.'); } }
   else if (k === 'clearwell'){ if (!confirm('Alle Ruhepuls- und Schlafdaten löschen?')) return; state.W = newWellness(); await DB.setMeta('wellness', state.W); recompute(); closeSheet(); render(); toast('Tageswerte gelöscht'); }
   else if (k === 'save') saveSettings();
   else if (k === 'showall'){ state.showAll = true; render(); }
@@ -875,6 +1044,7 @@ document.addEventListener('dblclick', e => { if (!e.target.closest('.leaflet-con
   const s = await DB.getMeta('settings'); if (s) Object.assign(state.S, s);
   const w = await DB.getMeta('wellness'); if (w && w.rhr && w.sleep) state.W = w;
   const an = await DB.getMeta('annot'); if (an && typeof an === 'object') state.annot = an;
+  const sh = await DB.getMeta('shoes'); if (Array.isArray(sh)) state.shoes = sh;
   state.acts = (await DB.all()) || [];
   recompute(); render();
   // Offline-Start: Hintergrundhelfer anmelden (nur über http/https, nicht beim Öffnen als lokale Datei)

@@ -86,7 +86,10 @@ test('Health-XML-Zeilen: Ruhepuls und Schlaf, andere Records ignoriert', () => {
   core.parseHealthXmlLine(' <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Connect" startDate="2026-09-20 01:00:00 +0200" endDate="2026-09-20 02:00:00 +0200" value="HKCategoryValueSleepAnalysisAsleepDeep"/>', recs);
   core.parseHealthXmlLine(' <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Connect" startDate="2026-09-20 01:00:00 +0200" value="60"/>', recs);
   core.parseHealthXmlLine(' <Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="30"/>', recs);
-  assert.equal(recs.length, 2);
+  // Herzfrequenz wird seit 2.3 mitgelesen (nur die letzten 3 Wochen), Workouts weiterhin nicht
+  const rs = recs.filter(r => r.k !== 'H');
+  assert.equal(rs.length, 2);
+  assert.ok(recs.filter(r => r.k === 'H').length <= 1);
   assert.deepEqual(recs[0], { k: 'R', t: Date.parse('2026-09-20T07:00:00+02:00'), v: 49, src: 'Connect' });
   assert.equal(recs[1].kind, 'deep');
 });
