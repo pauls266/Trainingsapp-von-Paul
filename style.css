@@ -314,3 +314,5 @@ nav.tabs button svg{transition:transform .2s ease}
 .week .item.optional .t1{opacity:.85}
 .week .t2.extra{color:var(--ink); margin-top:6px; padding-top:6px; border-top:1px dashed var(--line)}
 .plan-legend{margin-top:10px}
+
+.wbtns{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:12px 0 0}

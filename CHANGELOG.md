@@ -2,6 +2,11 @@
 
 Alle Änderungen am Laufbuch in verständlicher Sprache. Die aktuelle Version steht in der App unten in den Einstellungen.
 
+## 2.2.1
+
+- Neuer Knopf **Tageswerte einfügen** auf „Heute“: holt die Werte des Kurzbefehls mit einem Tipp aus der Zwischenablage (iOS fragt einmal mit „Einfügen“ nach).
+- Anleitung unter „Tageswerte“ um die **automatische Morgen-Automation** und das Rückseiten-Tippen ergänzt.
+
 ## 2.2.0
 
 ### Neu

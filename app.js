@@ -175,7 +175,7 @@ function vo2Panel(){
 
 function recoveryPanel(){
   const r = state.rec;
-  if (!r || r.empty) return `<h2>Erholung</h2><div class="panel"><p style="margin:0 0 10px">Bezieh Ruhepuls und Schlaf aus Apple Health ein – dann passt sich die Empfehlung jeden Morgen an deinen Zustand an.</p><button class="btn" data-action="wellness">Tageswerte einrichten</button></div>`;
+  if (!r || r.empty) return `<h2>Erholung</h2><div class="panel"><p style="margin:0 0 10px">Bezieh Ruhepuls und Schlaf aus Apple Health ein – dann passt sich die Empfehlung jeden Morgen an deinen Zustand an.</p><p class="wbtns"><button class="btn" data-action="wpaste">Tageswerte einfügen</button><button class="btn ghost" data-action="wellness">Einrichten</button></p></div>`;
   const col = p => p > 0 ? 'var(--z3)' : p < 0 ? (p <= -15 ? 'var(--z5)' : 'var(--z4)') : 'var(--z1)';
   const last = lastWellnessDay(state.W);
   const stale = last && last < dayKey(Date.now() - 864e5);
@@ -183,7 +183,8 @@ function recoveryPanel(){
   if (r.hasData) h += `<div class="rec"><div class="score">${r.score}<small>von 100</small></div><div><span class="state">${esc(r.label)}</span><p class="small" style="margin:6px 0 0">${esc(r.text)}${r.partial ? ' Nur teilweise Daten vorhanden.' : ''}</p></div></div>`;
   else h += `<p class="small" style="margin:0">Für heute fehlen noch Werte.</p>`;
   h += r.factors.map(f => `<div class="factor"><span class="dot" style="background:${col(f.p)}"></span><div><b>${esc(f.name)}</b><div class="small muted">${esc(f.text)}</div></div><span class="fv">${esc(f.val)}</span></div>`).join('');
-  h += `<p style="margin:12px 0 0"><button class="btn ghost" data-action="wellness">Tageswerte aktualisieren</button>${stale ? ` <span class="small muted">Letzte Werte vom ${fmtDate(new Date(last+'T12:00').getTime())}</span>` : ''}</p></div>`;
+  const today = last === dayKey(Date.now());
+  h += `<p class="wbtns">${today ? '' : '<button class="btn" data-action="wpaste">Tageswerte einfügen</button>'}<button class="btn ghost" data-action="wellness">${today ? 'Tageswerte aktualisieren' : 'Anleitung'}</button>${stale ? ` <span class="small muted">Letzte Werte vom ${fmtDate(new Date(last+'T12:00').getTime())}</span>` : ''}</p></div>`;
   return h;
 }
 
@@ -222,11 +223,20 @@ function openWellness(){
     </ol>
     <p class="small muted">Tipp: Bei den Datumsvariablen als Format „ISO 8601“ mit Uhrzeit wählen. Das deutsche Standardformat wird aber auch erkannt. Beim ersten Start fragt iOS, ob der Kurzbefehl Health-Daten lesen darf – erlauben.</p></div>
 
+    <h3>4. Automatisch jeden Morgen</h3>
+    <div class="guide"><ol>
+      <li>Kurzbefehle-App → unten <b>Automation</b> → <b>+</b> → <b>Wecker</b> → <b>Wird gestoppt</b> (oder <b>Tageszeit</b>, z. B. 7:30 Uhr, täglich).</li>
+      <li><b>Sofort ausführen</b> wählen und <b>Bei Ausführung benachrichtigen</b> einschalten.</li>
+      <li>Als Aktion <b>Kurzbefehl ausführen</b> → „Laufbuch Tageswerte“ → <b>Fertig</b>.</li>
+      <li>Ans Ende des Kurzbefehls „Laufbuch Tageswerte“ die Aktion <b>Mitteilung anzeigen</b> mit dem Text „Tageswerte bereit – Laufbuch öffnen“ hängen.</li>
+      <li>Als Rückfall: Einstellungen → Bedienungshilfen → Tippen → <b>Auf Rückseite tippen</b> → <b>Doppeltippen</b> → „Laufbuch Tageswerte“. Dann reicht zweimal hinten aufs iPhone tippen.</li>
+    </ol>
+    <p class="small muted">Wichtig: Ist das iPhone gesperrt, verweigert iOS meist den Zugriff auf Health-Daten. Läuft die Automation zu früh, fehlen die Werte – dann einfach per Rückseiten-Tippen nachholen. Garmin Connect muss vorher synchronisiert haben (läuft meist im Hintergrund).</p></div>
+
     <h3>Morgens dann</h3>
     <div class="guide"><ol>
-      <li>Garmin Connect kurz öffnen, damit die Uhr synchronisiert.</li>
-      <li>Kurzbefehl starten, am schnellsten über ein Widget auf dem Home-Bildschirm.</li>
-      <li>Laufbuch öffnen → <b>Tageswerte aktualisieren</b> → einfügen → <b>Übernehmen</b>.</li>
+      <li>Mitteilung „Tageswerte bereit“ abwarten (oder zweimal hinten aufs iPhone tippen).</li>
+      <li>Laufbuch öffnen → auf „Heute“ <b>Tageswerte einfügen</b> tippen → in der Blase <b>Einfügen</b> bestätigen.</li>
     </ol>
     <p class="small muted">Öffne das Laufbuch immer auf dieselbe Weise, am besten über das Symbol auf dem Home-Bildschirm. Safari und Home-Bildschirm-Apps haben auf dem iPhone getrennte Speicher.</p></div>
     <p class="privacy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Die Kurzbefehle-App und das Laufbuch laufen beide lokal auf deinem iPhone. Es wird nichts an einen Server geschickt.</span></p>
@@ -841,6 +851,10 @@ document.addEventListener('click', async e => {
   else if (k === 'addex'){ const list = $('#exlist'), cats = [...list.querySelectorAll('.ex-cat')].map(x => +x.value), next = EX_PICK.find(c => !cats.includes(c)); list.insertAdjacentHTML('beforeend', exBlock(next != null ? next : EX_PICK[0])); }
   else if (k === 'savestrength') saveStrength();
   else if (k === 'wapply'){ const t = $('#wtext').value; if (!t.trim()) return toast('Das Feld ist leer. Erst den Kurzbefehl ausführen, dann einfügen.'); const r = await applyWellness(parseShortcutText(t)); if (r.rhr || r.nights){ closeSheet(); toast(`Übernommen: ${r.rhr} Ruhepuls-Werte, ${r.nights} Nächte`); } }
+  else if (k === 'wpaste'){ try { const t = await navigator.clipboard.readText(); const recs = parseShortcutText(t || '');
+      if (!recs.length){ toast('In der Zwischenablage sind keine Tageswerte. Erst den Kurzbefehl „Laufbuch Tageswerte“ ausführen.'); return; }
+      const r = await applyWellness(recs); if (r.rhr || r.nights) toast(`Übernommen: ${r.rhr} Ruhepuls-Werte, ${r.nights} Nächte`); }
+    catch(err){ openWellness(); toast('Kein Zugriff auf die Zwischenablage. Tippe lange ins Feld und wähle „Einfügen“.'); } }
   else if (k === 'wclip'){ try { const t = await navigator.clipboard.readText(); $('#wtext').value = t; if (t.trim()){ const r = await applyWellness(parseShortcutText(t)); if (r.rhr || r.nights){ closeSheet(); toast(`Übernommen: ${r.rhr} Ruhepuls-Werte, ${r.nights} Nächte`); } } else toast('Die Zwischenablage ist leer.'); } catch(err){ toast('Kein Zugriff auf die Zwischenablage. Tippe lange ins Feld und wähle „Einfügen“.'); } }
   else if (k === 'clearwell'){ if (!confirm('Alle Ruhepuls- und Schlafdaten löschen?')) return; state.W = newWellness(); await DB.setMeta('wellness', state.W); recompute(); closeSheet(); render(); toast('Tageswerte gelöscht'); }
   else if (k === 'save') saveSettings();
