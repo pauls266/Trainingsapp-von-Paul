@@ -1,5 +1,5 @@
 /* ================= Analyse-Kern (läuft komplett lokal) ================= */
-const APP_VERSION = '2.2.1';
+const APP_VERSION = '2.3.0';
 const FIT_EPOCH_OFFSET = 631065600;
 const BT = {0:[1,'u8',0xFF],1:[1,'s8',0x7F],2:[1,'u8',0xFF],3:[2,'s16',0x7FFF],4:[2,'u16',0xFFFF],5:[4,'s32',0x7FFFFFFF],6:[4,'u32',0xFFFFFFFF],7:[1,'str',null],8:[4,'f32',null],9:[8,'f64',null],10:[1,'u8',0],11:[2,'u16',0],12:[4,'u32',0],13:[1,'u8',0xFF],14:[8,'x',null],15:[8,'x',null],16:[8,'x',null]};
 const GMSG = {0:'file_id',3:'user_profile',7:'zones_target',12:'sport',18:'session',19:'lap',20:'record',225:'set'};
@@ -325,14 +325,29 @@ function estimateParams(acts, S){
     }
   }
   let sex = S.sex || (recent.find(a => a.watch && a.watch.sex) || {watch:{}}).watch.sex || 'm';
-  return {maxHR, restHR, lthr, sex, src};
+  const zoneModel = ZONE_MODELS[S.zoneModel] ? S.zoneModel : 'hrr';
+  const P = {maxHR, restHR, lthr, sex, src, zoneModel};
+  P.bounds = zoneBounds(P, zoneModel);
+  return P;
+}
+// Zonenmodelle: Untergrenzen von Z2..Z5
+const ZONE_MODELS = {
+  hrr:  {name:'Herzfrequenzreserve (Karvonen)', short:'HF-Reserve', info:'Zonen in Prozent der Herzfrequenzreserve (HFmax − Ruhepuls): Z1 bis 60 %, Z2 60–70 %, Z3 70–80 %, Z4 80–90 %, Z5 ab 90 %. Berücksichtigt deinen Ruhepuls; so rechnet auch Garmin, wenn „% HFR“ eingestellt ist.'},
+  lthr: {name:'Laktatschwelle (Friel)', short:'Schwelle', info:'Zonen in Prozent der Laktatschwellen-HF: Z1 unter 85 %, Z2 85–89 %, Z3 90–94 %, Z4 95–99 %, Z5 ab 100 %. Genau an der Schwelle orientiert; Friels „Zone 2“ ist dabei schon recht zügig – lockere Läufe liegen oft in Z1.'},
+  max:  {name:'% der HFmax', short:'% HFmax', info:'Zonen in Prozent der maximalen Herzfrequenz: Z1 bis 70 %, Z2 70–80 %, Z3 80–87 %, Z4 87–93 %, Z5 ab 93 %. Einfach, aber ohne Ruhepuls und Schwelle.'}
+};
+function zoneBounds(P, model = 'hrr'){
+  if (model === 'lthr') return hrBounds(P.lthr);
+  if (model === 'max') return [0.70,0.80,0.87,0.93].map(f => Math.round(f*P.maxHR));
+  const r = P.maxHR - P.restHR;
+  return [0.60,0.70,0.80,0.90].map(f => Math.round(P.restHR + f*r));
 }
 function hrBounds(lthr){ return [0.85,0.90,0.95,1.0].map(f => Math.round(f*lthr)); } // Untergrenzen Z2..Z5
 function zoneOf(hr, b){ let z = 0; while (z < 4 && hr >= b[z]) z++; return z; }
 
 // opts.rpe: Anstrengung 1–10 (Session-RPE nach Foster), opts.k: Umrechnung RPE-Minuten -> TRIMP-Skala
 function derive(act, P, opts = {}){
-  const st = act.stream || {t:[],hr:[],v:[]}, b = hrBounds(P.lthr), zs = [0,0,0,0,0];
+  const st = act.stream || {t:[],hr:[],v:[]}, b = P.bounds || zoneBounds(P, P.zoneModel), zs = [0,0,0,0,0];
   const k = P.sex === 'f' ? [0.86,1.67] : [0.64,1.92];
   let trimp = 0, hrN = 0;
   for (let i=0;i<st.hr.length;i++){
@@ -561,11 +576,13 @@ function buildPlan(ctx){
   const {S, acts, der, P, paces, series, today = Date.now()} = ctx;
   const goal = S.goal === 'hm' ? 'hm' : 'm';
   const nRuns = Math.min(6, Math.max(3, +S.runsPerWeek || 4));
-  const wk = weeklyKm(acts, 9, today);
+  // Vorschau der nächsten Woche: Umfang aus dem aktuellen Stand ableiten (die laufende Woche ist noch nicht fertig)
+  const volRef = ctx.preview ? today - 7*DAY : today;
+  const wk = weeklyKm(acts, 9, volRef);
   const done = wk.slice(0, 8);            // abgeschlossene Wochen
   const last4 = done.slice(-4), vol4 = last4.reduce((s,w)=>s+w.km,0)/4;
   const peak8 = Math.max(0, ...done.map(w=>w.km));
-  const longest6 = Math.max(0, ...acts.filter(a => a.isRun && today - a.start < 42*DAY).map(a => a.dist/1000));
+  const longest6 = Math.max(0, ...acts.filter(a => a.isRun && volRef - a.start < 42*DAY && a.start <= today).map(a => a.dist/1000));
   const notes = [];
 
   // Phase
@@ -598,7 +615,7 @@ function buildPlan(ctx){
   const pt = paces ? {
     E: fmtPace(paces.E[0])+'–'+fmtPace(paces.E[1]), M: fmtPace(paces.M), HM: fmtPace(paces.HM), T: fmtPace(paces.T), I: fmtPace(paces.I)
   } : null;
-  const b = hrBounds(P.lthr);
+  const b = P.bounds || zoneBounds(P, P.zoneModel);
   const hrE = 'HF unter '+b[1], hrT = 'HF '+b[2]+'–'+b[3], hrM = 'HF '+b[0]+'–'+(b[2]-1), hrHM = 'HF '+b[2]+'–'+(b[3]+2);
   const tempo = (key, hr) => pt ? pt[key]+'/km · '+hr : hr;
   const Tp = paces ? paces.T : 330, Ip = paces ? paces.I : 300, HMp = paces ? paces.HM : 320;
@@ -809,6 +826,73 @@ function buildPlan(ctx){
 }
 
 
+/* ---------------- Krafttraining verknüpfen ----------------
+   Eine von Hand eingetragene Krafteinheit und eine Uhr-Aufzeichnung gehören zusammen, wenn sie sich zeitlich
+   überschneiden oder höchstens 30 Minuten auseinander beginnen. */
+function sameSession(a, b, tolMin = 30){
+  const a1 = a.start + (a.timer || 0)*1000, b1 = b.start + (b.timer || 0)*1000;
+  return (a.start < b1 && b.start < a1) || Math.abs(a.start - b.start) <= tolMin*60000;
+}
+function findStrengthPartner(act, acts){
+  const want = act.src === 'manual' ? (x => x.src !== 'manual' && (x.kind === 'strength' || (x.sport === 10 || x.sport === 4))) : (x => x.src === 'manual' && x.kind === 'strength');
+  return acts.find(x => x.id !== act.id && want(x) && sameSession(act, x)) || null;
+}
+// Herzfrequenz-Einzelwerte (Health) als 5-s-Stream für ein Zeitfenster; Lücken bis 3 min werden überbrückt
+function hrSamples(W){
+  if (!W || !W.hr) return [];
+  return Object.keys(W.hr).map(k => [+k*1000, W.hr[k]]).sort((a,b) => a[0] - b[0]);
+}
+function hrStreamFromSamples(samples, start, end){
+  let lo = 0, hi = samples.length;
+  while (lo < hi){ const m = (lo+hi) >> 1; if (samples[m][0] < start - 180000) lo = m + 1; else hi = m; }
+  const win = []; for (let i = lo; i < samples.length && samples[i][0] <= end + 60000; i++) win.push(samples[i]);
+  if (win.filter(x => x[0] >= start && x[0] <= end).length < 3) return null;
+  const st = {t:[], hr:[], v:[], c:[], d:[], a:[]};
+  let j = 0;
+  for (let t = start; t <= end; t += 5000){
+    while (j < win.length - 1 && win[j+1][0] <= t) j++;
+    const p = win[j], q = win[j+1];
+    let hr = 0;
+    if (p && p[0] <= t){
+      if (q && q[0] - p[0] <= 180000) hr = p[1] + (q[1] - p[1]) * (t - p[0]) / (q[0] - p[0]);   // zwischen zwei Werten interpolieren
+      else if (t - p[0] <= 180000) hr = p[1];
+    } else if (p && p[0] - t <= 60000) hr = p[1];
+    st.t.push(Math.round((t - start)/1000)); st.hr.push(Math.round(hr)); st.v.push(0); st.c.push(0); st.d.push(0); st.a.push(null);
+  }
+  const have = st.hr.filter(x => x > 0);
+  return have.length >= 30 ? {stream: st, avgHR: Math.round(have.reduce((a,b) => a+b, 0)/have.length), maxHR: Math.max(...have)} : null;
+}
+// Ergänzt von Hand eingetragene Krafteinheiten ohne Puls um Werte aus Health (nicht gespeichert, wird jedes Mal neu berechnet)
+function attachHealthHR(acts, W){
+  const S = hrSamples(W); let n = 0;
+  if (!S.length) return 0;
+  for (const a of acts){
+    if (a.src !== 'manual' || a.hrSrc === 'watch' || !a.timer) continue;
+    const r = hrStreamFromSamples(S, a.start, a.start + a.timer*1000);
+    if (!r) continue;
+    a.stream = r.stream; a.avgHR = r.avgHR; a.maxHR = r.maxHR; a.hrSrc = 'health'; n++;
+  }
+  return n;
+}
+
+/* ---------------- Laufschuhe ----------------
+   shoes: [{id, name, startKm, limitKm, retired, since}] (Store „meta“, Schlüssel „shoes“)
+   Zuordnung pro Lauf in annot[id].shoe (Schuh-ID oder 'none' = bewusst ohne Zuordnung) */
+function shoeStats(shoes, acts, annot = {}){
+  const runs = acts.filter(a => a.kind === 'run');
+  return (shoes || []).map(sh => {
+    const mine = runs.filter(a => annot[a.id] && annot[a.id].shoe === sh.id);
+    const runKm = mine.reduce((s, a) => s + (a.dist || 0)/1000, 0);
+    const km = (+sh.startKm || 0) + runKm, limit = +sh.limitKm || 700;
+    return {...sh, km: Math.round(km*10)/10, runKm: Math.round(runKm*10)/10, runs: mine.length, limit,
+      pct: Math.min(1.5, km/limit), last: mine.length ? Math.max(...mine.map(a => a.start)) : null};
+  });
+}
+// Läufe, für die noch gefragt werden soll: ab Beginn der Schuh-Erfassung (ältere nicht, sonst wären es Hunderte)
+function unassignedRuns(acts, annot = {}, since = 0){
+  return acts.filter(a => a.kind === 'run' && a.start >= (since || 0) && !(annot[a.id] && annot[a.id].shoe)).sort((a,b) => b.start - a.start);
+}
+
 /* ---------------- Trainingszustand ----------------
    Kombiniert Belastungsverlauf (Fitness/Ermüdung), VO2max-Trend und weitere Signale zu einer klaren Aussage
    plus konkreten Punkten „Das verbessert sich“ und „Darauf achten“. */
@@ -904,6 +988,21 @@ function trainingStatus(ctx){
   return {key, label, tone, text, better: better.slice(0, 6), watch: watch.slice(0, 6), acwr, ctlChg};
 }
 
+// Die nächsten 7 Tage ab heute: Tage dieser Woche aus dem aktuellen Plan, danach aus der Vorschau der nächsten Woche
+function nextSevenDays(cur, next, today = Date.now()){
+  const out = [], t0 = new Date(today); t0.setHours(12, 0, 0, 0);
+  const tIdx = (t0.getDay()+6)%7;
+  for (let i = 0; i < 7; i++){
+    const d = new Date(t0); d.setDate(d.getDate() + i);
+    const wd = (d.getDay()+6)%7, fromNext = tIdx + i > 6;
+    const src = fromNext ? next : cur;
+    const s = src && src.sessions[wd];
+    if (!s) continue;
+    out.push({...s, ts: d.getTime(), offset: i, preview: fromNext, phase: src.phase, recovery: src.recovery});
+  }
+  return out;
+}
+
 /* ---------------- Tageswerte: Ruhepuls & Schlaf aus Apple Health ---------------- */
 function sleepKind(v){
   const s = String(v == null ? '' : v).toLowerCase().trim();
@@ -932,6 +1031,7 @@ function parseShortcutText(txt){
     const p = line.split(';').map(x => x.trim());
     if (p[0] === 'R' && p.length >= 3) recs.push({k:'R', t:parseHKDate(p[1]), v:parseNum(p[2]), src:p[3] || ''});
     else if (p[0] === 'S' && p.length >= 4) recs.push({k:'S', s:parseHKDate(p[1]), e:parseHKDate(p[2]), kind:sleepKind(p[3]), src:p[4] || ''});
+    else if (p[0] === 'H' && p.length >= 3) recs.push({k:'H', t:parseHKDate(p[1]), v:parseNum(p[2]), src:p[3] || ''}); // Herzfrequenz (optional, ab 2.3)
   }
   return recs;
 }
@@ -939,13 +1039,20 @@ function xmlAttr(line, name){ const i = line.indexOf(' '+name+'="'); if (i < 0) 
 function parseHealthXmlLine(line, recs){
   if (line.indexOf('<Record') < 0) return;
   if (line.indexOf('HKQuantityTypeIdentifierRestingHeartRate"') >= 0) recs.push({k:'R', t:parseHKDate(xmlAttr(line,'startDate')), v:parseNum(xmlAttr(line,'value')), src:xmlAttr(line,'sourceName') || ''});
+  else if (line.indexOf('HKQuantityTypeIdentifierHeartRate"') >= 0){ const t = parseHKDate(xmlAttr(line,'startDate')); if (t && Date.now() - t < HR_KEEP_DAYS*DAY) recs.push({k:'H', t, v:parseNum(xmlAttr(line,'value')), src:xmlAttr(line,'sourceName') || ''}); }
   else if (line.indexOf('HKCategoryTypeIdentifierSleepAnalysis"') >= 0) recs.push({k:'S', s:parseHKDate(xmlAttr(line,'startDate')), e:parseHKDate(xmlAttr(line,'endDate')), kind:sleepKind(xmlAttr(line,'value')), src:xmlAttr(line,'sourceName') || ''});
 }
-function newWellness(){ return {rhr:{}, sleep:{}}; }
+function newWellness(){ return {rhr:{}, sleep:{}, hr:{}}; }
+const HR_KEEP_DAYS = 21; // Herzfrequenz-Einzelwerte aus Health nur 3 Wochen aufbewahren (für Krafttraining ohne Uhr-Aufzeichnung)
 const sleepTotal = x => x.deep + x.rem + x.core + x.asleep;
 function ingestWellness(W, recs, today = Date.now()){
-  const cutoff = today - 730*DAY, nights = {}, seen = new Set(); let nr = 0;
+  const cutoff = today - 730*DAY, nights = {}, seen = new Set(); let nr = 0, nh = 0;
+  const hrCut = today - HR_KEEP_DAYS*DAY;
   for (const r of recs){
+    if (r.k === 'H'){
+      if (!r.t || r.t < hrCut || r.t > today + DAY || !(r.v >= 30 && r.v <= 230)) continue;
+      (W.hr = W.hr || {})[Math.round(r.t/1000)] = Math.round(r.v); nh++; continue;
+    }
     if (r.k === 'R'){
       if (!r.t || r.t < cutoff || !(r.v >= 25 && r.v <= 120)) continue;
       const d = dayKey(r.t); (W.rhr[d] = W.rhr[d] || {})[r.src || '?'] = Math.round(r.v); nr++;
@@ -966,7 +1073,8 @@ function ingestWellness(W, recs, today = Date.now()){
       if (!old || sleepTotal(nw) > sleepTotal(old) || (sleepTotal(nw) === sleepTotal(old) && nw.inbed >= old.inbed)) W.sleep[nk][src] = nw;
     }
   }
-  return {rhr:nr, nights:Object.keys(nights).length};
+  if (W.hr) for (const k in W.hr) if (+k*1000 < hrCut) delete W.hr[k];
+  return {rhr:nr, nights:Object.keys(nights).length, hr:nh};
 }
 function rhrOf(W, d){
   const o = W && W.rhr[d]; if (!o) return null;
@@ -1067,5 +1175,5 @@ function joinDuration(h, m, s){
   return hh + ':' + String(mm).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
 }
 
-if (typeof module !== 'undefined') module.exports = {APP_VERSION, SCHEMA, SPORTS, KINDS, KIND_COLORS, buildActivities, sportKind, sportName, normalizeAct, rpeFactor, RPE_K_DEFAULT, vo2maxRun, vo2Trend, median, trainingStatus, MUSCLES, EX_CATS, EX_PICK, exerciseName, catName, e1rm, strengthSummary, parseShortcutText, parseHealthXmlLine, ingestWellness, newWellness, recovery, sleepOf, rhrOf, rhrBaseline, parseHKDate, sleepKind, dayKey, shiftDay, fmtHM, parseFit, buildActivity, estimateParams, derive, vdotFrom, predictTime, trainingPaces, estimateVdot, loadSeries, weeklyKm, buildPlan, fmtPace, fmtDur, hrBounds, zoneOf, parseDuration, parseGoalTime, splitDuration, joinDuration, bestByDistance, bestByTime, mondayOf};
+if (typeof module !== 'undefined') module.exports = {APP_VERSION, SCHEMA, SPORTS, KINDS, KIND_COLORS, buildActivities, sportKind, sportName, normalizeAct, rpeFactor, RPE_K_DEFAULT, vo2maxRun, vo2Trend, median, trainingStatus, shoeStats, unassignedRuns, nextSevenDays, sameSession, findStrengthPartner, hrSamples, hrStreamFromSamples, attachHealthHR, HR_KEEP_DAYS, MUSCLES, EX_CATS, EX_PICK, exerciseName, catName, e1rm, strengthSummary, parseShortcutText, parseHealthXmlLine, ingestWellness, newWellness, recovery, sleepOf, rhrOf, rhrBaseline, parseHKDate, sleepKind, dayKey, shiftDay, fmtHM, parseFit, buildActivity, estimateParams, derive, vdotFrom, predictTime, trainingPaces, estimateVdot, loadSeries, weeklyKm, buildPlan, fmtPace, fmtDur, hrBounds, zoneBounds, ZONE_MODELS, zoneOf, parseDuration, parseGoalTime, splitDuration, joinDuration, bestByDistance, bestByTime, mondayOf};
 

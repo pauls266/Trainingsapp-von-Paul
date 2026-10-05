@@ -32,7 +32,7 @@ test('Parameter: Reihenfolge eigene Eingabe > Uhr > Schätzung', () => {
 });
 
 test('TRIMP und Zonenzeit; Schätzung ohne HF', () => {
-  const P = { lthr: 170, maxHR: 190, restHR: 50, sex: 'm' };
+  const P = { lthr: 170, maxHR: 190, restHR: 50, sex: 'm', zoneModel: 'lthr' };
   const d = core.derive(act(1, { hr: 140 }), P);
   assert.ok(d.trimp > 40 && d.trimp < 80, 'TRIMP ' + d.trimp);
   assert.equal(d.hrEst, false);
@@ -122,4 +122,17 @@ test('Zeitfelder (Std/Min/Sek) zusammensetzen und zerlegen', () => {
   // Rundweg: gespeicherter Text bleibt mit parseDuration lesbar
   assert.equal(core.parseDuration(core.joinDuration('', '19', '30')), 1170);
   assert.equal(core.parseDuration(core.joinDuration('3', '15', '')), 11700);
+});
+
+test('Zonenmodelle: Herzfrequenzreserve ist Standard, Friel und %HFmax wählbar', () => {
+  // Pauls Fall: Laktatschwelle 186 – nach Friel beginnt Z2 erst bei 158
+  const P = { lthr: 186, maxHR: 200, restHR: 48 };
+  assert.deepEqual(core.zoneBounds(P, 'lthr'), [158, 167, 177, 186]);
+  assert.deepEqual(core.zoneBounds(P, 'hrr'), [139, 154, 170, 185]);
+  assert.deepEqual(core.zoneBounds(P, 'max'), [140, 160, 174, 186]);
+  const a = core.estimateParams([], { lthr: '186', maxHR: '200', restHR: '48' });
+  assert.equal(a.zoneModel, 'hrr');
+  assert.deepEqual(a.bounds, [139, 154, 170, 185]);
+  assert.equal(core.estimateParams([], { zoneModel: 'lthr', lthr: '186' }).bounds[0], 158);
+  assert.equal(core.estimateParams([], { zoneModel: 'quatsch' }).zoneModel, 'hrr');
 });
